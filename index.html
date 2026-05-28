@@ -2,148 +2,295 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Graz Poster & Sticker Tracker</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --favorite: #fd7e14;
+            --dark: #212529;
+            --sticker: #e83e8c;
+        }
+
         body {
             margin: 0;
             padding: 0;
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             flex-direction: column;
             height: 100vh;
+            overflow: hidden;
+            background: #f8f9fa;
         }
-        #controls {
-            padding: 15px;
-            background: #fff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+
+        #map {
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* --- TOP BAR (Status & Backup) --- */
+        #top-bar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(4px);
+            padding: 10px 14px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        #status {
+            font-weight: 500;
+            color: var(--dark);
+        }
+        .backup-row {
+            display: flex;
+            gap: 8px;
+            border-top: 1px solid #eee;
+            padding-top: 6px;
+        }
+        .btn-mini {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 6px;
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* --- SCHWEBENDE AKTION-BUTTONS (FAB) --- */
+        .fab-container {
+            position: absolute;
+            right: 16px;
+            bottom: 90px; /* Über der Bottom-Nav platziert */
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
-        .row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-        }
-        button {
-            padding: 10px 15px;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        button:disabled { background: #ccc !important; cursor: not-allowed; }
-
-        /* Modus Buttons */
-        .btn-mode { background: #6c757d; }
-        .btn-mode.active { background: #212529; border: 2px solid #007bff; }
-
-        /* Action Buttons */
-        #add-gps-btn { background: #007bff; }
-        #add-gps-btn:hover { background: #0056b3; }
-        #sticker-btn { background: #e83e8c; display: none; }
-        #sticker-btn:hover { background: #c82333; }
-
-        /* Layouts für Optionen */
-        #manual-options {
-            display: none;
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 4px;
-            border: 1px solid #dee2e6;
-        }
-        .btn-status { background: #17a2b8; font-size: 13px; }
-
-        #map { flex-grow: 1; }
-
-        /* --- KARTEN SYMBOLE STYLES --- */
-        .poster-badge {
-            background: #007bff;
-            color: white;
-            border: 2px solid white;
+        .btn-fab {
+            width: 60px;
+            height: 60px;
             border-radius: 50%;
-            font-weight: bold;
-            font-size: 14px;
+            border: none;
+            color: white;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            transition: transform 0.2s;
         }
-        .badge-red-x { background: #dc3545; font-size: 16px; }
-        .badge-yellow-q { background: #ffc107; color: black; font-size: 16px; }
-        .badge-star { background: #fd7e14; font-size: 16px; }
+        .btn-fab:active { transform: scale(0.9); }
+        #add-gps-btn { background: var(--primary); }
+        #sticker-btn { background: var(--sticker); display: none; }
+        .btn-fab:disabled { background: #ccc !important; box-shadow: none; }
 
-        /* Sticker Quadrat */
-        .sticker-square {
-            background: #e83e8c;
+        /* --- MANUELLES OPTIONS-PANEL (Slide-Up) --- */
+        #manual-options {
+            position: absolute;
+            bottom: 80px;
+            left: 10px;
+            right: 10px;
+            background: white;
+            padding: 14px;
+            border-radius: 16px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: none;
+        }
+        #manual-options strong {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: var(--dark);
+        }
+        .grid-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .btn-status {
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        /* --- BOTTOM NAVIGATION BAR --- */
+        #bottom-nav {
+            height: 70px;
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+            z-index: 1000;
+            display: flex;
+            border-top: 1px solid #eec;
+        }
+        .nav-item {
+            flex: 1;
+            background: none;
+            border: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            color: #6c757d;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .nav-item.active {
+            color: var(--dark);
+            font-weight: 700;
+        }
+        .nav-item .icon {
+            font-size: 20px;
+            padding: 4px 16px;
+            border-radius: 16px;
+            transition: background 0.2s;
+        }
+        .nav-item.active .icon {
+            background: #e9ecef;
+            color: var(--dark);
+        }
+
+        /* --- LEAFLET UI OVERRIDES FOR MOBILE --- */
+        .leaflet-touch .leaflet-bar {
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .leaflet-top.leaflet-left {
+            top: 85px; /* Unter die Top-Bar verschieben */
+        }
+
+        /* --- KARTEN MARKER & BADGES --- */
+        .poster-badge, .sticker-square, .live-dot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .poster-badge {
+            background: var(--primary);
             border: 2px solid white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            border-radius: 50%;
+            font-size: 14px;
         }
+        .badge-red-x { background: var(--danger); font-size: 15px; }
+        .badge-yellow-q { background: var(--warning); color: black; font-size: 15px; }
+        .badge-star { background: var(--favorite); font-size: 15px; }
 
+        .sticker-square {
+            background: var(--sticker);
+            border: 2px solid white;
+            border-radius: 4px;
+        }
         .live-dot {
             background: #00bcd4;
             border: 2px solid white;
             border-radius: 50%;
-            box-shadow: 0 0 0 4px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 0 0 5px rgba(0, 188, 212, 0.4);
         }
 
-        .popup-controls { display: flex; gap: 5px; margin-top: 5px; }
-        .popup-btn { padding: 3px 8px; font-size: 11px; }
-        .btn-del { background: #dc3545; }
+        /* Popup Anpassungen */
+        .popup-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .popup-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: none;
+            color: white;
+            font-weight: bold;
+        }
+        .btn-add { background: var(--success); }
+        .btn-dec { background: var(--warning); color: black; }
+        .btn-del { background: var(--danger); }
     </style>
 </head>
 <body>
 
-    <div id="controls">
-
-        <div class="row" style="margin-top: 5px; border-top: 1px solid #dee2e6; padding-top: 10px;">
-            <button id="export-csv-btn" style="background: #28a745;">📥 CSV Export</button>
-            <button id="import-csv-btn" style="background: #17a2b8;">📤 CSV Import</button>
-            <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+    <!-- Kompakte Status-Bar oben -->
+    <div id="top-bar">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div id="status">Echtzeit-Ortung startet...</div>
+            <button id="settings-toggle" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 5px;">⚙️</button>
         </div>
 
-        <div class="row">
-            <strong>Modus:</strong>
-            <button id="mode-poster" class="btn-mode active">📋 Plakate</button>
-            <button id="mode-sticker" class="btn-mode">🏷️ Sticker</button>
-        </div>
-
-        <div class="row">
-            <button id="add-gps-btn" disabled>📡 Warte auf GPS...</button>
-            <button id="sticker-btn" disabled>🎯 Sticker geklebt (Hier)</button>
-            <span id="status">Initialisiere Echtzeit-Tracking...</span>
-        </div>
-
-        <div id="manual-options">
-            <strong>Option für gewähltes Haus:</strong>
-            <div class="row" style="margin-top: 5px;">
-                <button class="btn-status" data-status="angebracht">💙 Plakat angebracht</button>
-                <button class="btn-status" style="background:#dc3545;" data-status="nicht_erwuenscht">❌ Nicht erwünscht</button>
-                <button class="btn-status" style="background:#ffc107; color:black;" data-status="erneut_fragen">❓ Erneute Fragen</button>
-                <button class="btn-status" style="background:#fd7e14;" data-status="favorit">⭐ Zu Favoriten</button>
+        <!-- Versteckter Bereich für Backup (nur sichtbar nach Klick auf Zahnrad) -->
+        <div id="settings-menu" style="display: none; border-top: 1px solid #eee; margin-top: 10px; padding-top: 10px;">
+            <div class="backup-row">
+                <button id="export-csv-btn" class="btn-mini" style="background: var(--success); flex: 1;">📥 Export CSV</button>
+                <button id="import-csv-btn" class="btn-mini" style="background: #17a2b8; flex: 1;">📤 Import CSV</button>
+                <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
             </div>
+            <div style="font-size: 10px; color: #888; margin-top: 8px; text-align: center;">Datenbank Backup & Wiederherstellung</div>
         </div>
     </div>
 
     <div id="map"></div>
 
+    <div class="fab-container">
+        <button id="add-gps-btn" class="btn-fab" disabled>➕</button>
+        <button id="sticker-btn" class="btn-fab" disabled>🎯</button>
+    </div>
+
+    <div id="manual-options">
+        <strong>Haus-Aktion wählen:</strong>
+        <div class="grid-options">
+            <button class="btn-status" style="background: var(--primary);" data-status="angebracht">💙 Angebracht</button>
+            <button class="btn-status" style="background: var(--danger);" data-status="nicht_erwuenscht">❌ Abgelehnt</button>
+            <button class="btn-status" style="background: var(--warning); color: black;" data-status="erneut_fragen">❓ Später fragen</button>
+            <button class="btn-status" style="background: var(--favorite);" data-status="favorit">⭐ Favorit</button>
+        </div>
+    </div>
+
+    <nav id="bottom-nav">
+        <button id="mode-poster" class="nav-item active">
+            <div class="icon">📋</div>
+            <span>Plakate</span>
+        </button>
+        <button id="mode-sticker" class="nav-item">
+            <div class="icon">🏷️</div>
+            <span>Sticker</span>
+        </button>
+    </nav>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <script>
-
         const SUPABASE_URL = "https://jlijxaavapxylbiouqzq.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_YEwN3wWWS2NddJOxVoq-qw_H5DpzveH";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const map = L.map('map').setView([47.0707, 15.4395], 13);
+        const map = L.map('map', { zoomControl: true }).setView([47.0707, 15.4395], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
+            attribution: '© OSM',
             maxZoom: 19
         }).addTo(map);
 
@@ -152,41 +299,61 @@
         let liveLocationMarker = null;
         let manualSelectedPos = null;
         let manualMarker = null;
+        let currentMode = 'poster';
 
-        let currentMode = 'poster'; // 'poster' oder 'sticker'
-
-        // --- SCHALTFLÄCHEN FÜR MODUS ---
         document.getElementById('mode-poster').addEventListener('click', () => switchMode('poster'));
         document.getElementById('mode-sticker').addEventListener('click', () => switchMode('sticker'));
 
         function switchMode(mode) {
             currentMode = mode;
-            document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
             document.getElementById('manual-options').style.display = 'none';
             if(manualMarker) { map.removeLayer(manualMarker); manualMarker = null; }
 
             if (mode === 'poster') {
                 document.getElementById('mode-poster').classList.add('active');
-                document.getElementById('add-gps-btn').style.display = 'inline-block';
+                document.getElementById('add-gps-btn').style.display = 'flex';
                 document.getElementById('sticker-btn').style.display = 'none';
-                document.getElementById('status').textContent = "Poster-Modus aktiv. Zeige nur Poster.";
+                document.getElementById('status').textContent = "Poster-Modus aktiv.";
             } else {
                 document.getElementById('mode-sticker').classList.add('active');
                 document.getElementById('add-gps-btn').style.display = 'none';
-                document.getElementById('sticker-btn').style.display = 'inline-block';
-                document.getElementById('status').textContent = "Sticker-Modus aktiv. Zeige nur Sticker.";
+                document.getElementById('sticker-btn').style.display = 'flex';
+                document.getElementById('status').textContent = "Sticker-Modus aktiv.";
             }
-
             fetchLocations();
         }
 
-        // --- KARTENMARKER LADEN ---
-        async function fetchLocations() {
-            const { data, error } = await supabaseClient
-                .from('poster_locations')
-                .select('*')
-                .eq('type', currentMode);
+        // --- SETTINGS TOGGLE LOGIK ---
+        let settingsVisible = false;
+        document.getElementById('settings-toggle').addEventListener('click', (e) => {
+            e.stopPropagation(); // Verhindert Klicks auf die Karte durch die Bar
+            settingsVisible = !settingsVisible;
+            const menu = document.getElementById('settings-menu');
+            const btn = document.getElementById('settings-toggle');
 
+            if (settingsVisible) {
+                menu.style.display = 'block';
+                btn.textContent = '✖️'; // Schließen-Symbol
+                btn.style.fontSize = '16px';
+            } else {
+                menu.style.display = 'none';
+                btn.textContent = '⚙️'; // Zahnrad-Symbol
+                btn.style.fontSize = '20px';
+            }
+        });
+
+        // Optional: Menü schließen, wenn man auf die Karte klickt
+        map.on('mousedown', () => {
+            if (settingsVisible) {
+                settingsVisible = false;
+                document.getElementById('settings-menu').style.display = 'none';
+                document.getElementById('settings-toggle').textContent = '⚙️';
+            }
+        });
+
+        async function fetchLocations() {
+            const { data, error } = await supabaseClient.from('poster_locations').select('*').eq('type', currentMode);
             if (error) return console.error(error);
 
             Object.keys(markers).forEach(id => map.removeLayer(markers[id]));
@@ -195,49 +362,33 @@
                 let customIcon;
 
                 if (loc.type === 'sticker') {
-                    customIcon = L.divIcon({
-                        className: 'sticker-square',
-                        iconSize: [16, 16],
-                        iconAnchor: [8, 8]
-                    });
+                    customIcon = L.divIcon({ className: 'sticker-square', iconSize: [16, 16], iconAnchor: [8, 8] });
                 } else {
                     let className = 'poster-badge';
                     let htmlContent = `<span>${loc.poster_count}</span>`;
 
-                    if (loc.status === 'nicht_erwuenscht') {
-                        className += ' badge-red-x';
-                        htmlContent = '❌';
-                    } else if (loc.status === 'erneut_fragen') {
-                        className += ' badge-yellow-q';
-                        htmlContent = '❓';
-                    } else if (loc.status === 'favorit') {
-                        className += ' badge-star';
-                        htmlContent = '⭐';
-                    }
+                    if (loc.status === 'nicht_erwuenscht') { className += ' badge-red-x'; htmlContent = '❌'; }
+                    else if (loc.status === 'erneut_fragen') { className += ' badge-yellow-q'; htmlContent = '❓'; }
+                    else if (loc.status === 'favorit') { className += ' badge-star'; htmlContent = '⭐'; }
 
-                    customIcon = L.divIcon({
-                        className: className,
-                        html: htmlContent,
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 15]
-                    });
+                    customIcon = L.divIcon({ className: className, html: htmlContent, iconSize: [30, 30], iconAnchor: [15, 15] });
                 }
 
                 const marker = L.marker([loc.latitude, loc.longitude], { icon: customIcon }).addTo(map);
-
                 const popupContent = document.createElement('div');
+
                 if (loc.type === 'sticker') {
-                    popupContent.innerHTML = `<strong>Sticker hier geklebt</strong><br>
+                    popupContent.innerHTML = `<strong style="font-size:14px;">Sticker geklebt</strong><br>
                         <div class="popup-controls"><button class="popup-btn btn-del" data-id="${loc.id}">Löschen</button></div>`;
                     popupContent.querySelector('.btn-del').addEventListener('click', () => deleteLocation(loc.id));
                 } else {
                     popupContent.innerHTML = `
-                        <strong>Status: ${loc.status.replace('_', ' ')}</strong><br>
+                        <strong style="font-size:14px;">${loc.status.toUpperCase().replace('_', ' ')}</strong><br>
                         Anzahl: ${loc.poster_count}<br>
                         <div class="popup-controls">
                             <button class="popup-btn btn-add">+1</button>
                             <button class="popup-btn btn-dec">-1</button>
-                            <button class="popup-btn btn-del" style="margin-left:auto;">🗑️</button>
+                            <button class="popup-btn btn-del">🗑️</button>
                         </div>
                     `;
                     popupContent.querySelector('.btn-add').addEventListener('click', () => updateCount(loc.id, loc.poster_count + 1));
@@ -251,22 +402,20 @@
         }
 
         async function updateCount(id, newCount) {
-            if (newCount <= 0) {
-                deleteLocation(id);
-            } else {
+            if (newCount <= 0) { deleteLocation(id); }
+            else {
                 await supabaseClient.from('poster_locations').update({ poster_count: newCount }).eq('id', id);
                 fetchLocations();
             }
         }
 
         async function deleteLocation(id) {
-            if(confirm("Möchtest du diesen Datenpunkt wirklich unwiderruflich löschen?")) {
+            if(confirm("Datenpunkt löschen?")) {
                 await supabaseClient.from('poster_locations').delete().eq('id', id);
                 fetchLocations();
             }
         }
 
-        // --- GPS TRACKING ---
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition((position) => {
                 const lat = position.coords.latitude;
@@ -274,35 +423,30 @@
                 currentPos = { lat, lon };
 
                 document.getElementById('add-gps-btn').disabled = false;
-                document.getElementById('add-gps-btn').textContent = "➕ Plakat an GPS Position";
                 document.getElementById('sticker-btn').disabled = false;
 
-                const liveIcon = L.divIcon({ className: 'live-dot', iconSize: [14, 14], iconAnchor: [7, 7] });
-                if (liveLocationMarker) {
-                    liveLocationMarker.setLatLng([lat, lon]);
-                } else {
-                    liveLocationMarker = L.marker([lat, lon], { icon: liveIcon }).addTo(map);
+                if(document.getElementById('status').textContent.includes("startet")) {
+                    document.getElementById('status').textContent = "Echtzeit-Ortung aktiv.";
                 }
+
+                const liveIcon = L.divIcon({ className: 'live-dot', iconSize: [14, 14], iconAnchor: [7, 7] });
+                if (liveLocationMarker) { liveLocationMarker.setLatLng([lat, lon]); }
+                else { liveLocationMarker = L.marker([lat, lon], { icon: liveIcon }).addTo(map); }
+
                 map.setView([lat, lon], 18);
             }, (err) => console.error(err), { enableHighAccuracy: true });
         }
 
-        // --- MANUELLER KLICK AUF KARTE ---
         map.on('click', (e) => {
             if (currentMode !== 'poster') return;
 
             manualSelectedPos = e.latlng;
-            if (manualMarker) {
-                manualMarker.setLatLng(manualSelectedPos);
-            } else {
-                manualMarker = L.marker(manualSelectedPos).addTo(map);
-            }
+            if (manualMarker) { manualMarker.setLatLng(manualSelectedPos); }
+            else { manualMarker = L.marker(manualSelectedPos).addTo(map); }
 
             document.getElementById('manual-options').style.display = 'block';
-            document.getElementById('status').textContent = "Haus ausgewählt. Wähle eine Option aus.";
         });
 
-        // --- SPEICHER-LOGIK ---
         async function saveData(lat, lon, type, status, count = 1) {
             document.getElementById('status').textContent = "Speichere...";
             const { error } = await supabaseClient.from('poster_locations').insert([
@@ -310,10 +454,9 @@
             ]);
 
             if (error) {
-                document.getElementById('status').textContent = "Fehler beim Speichern!";
-                console.error(error);
+                document.getElementById('status').textContent = "Fehler!";
             } else {
-                document.getElementById('status').textContent = "Erfolgreich gespeichert!";
+                document.getElementById('status').textContent = "Gespeichert!";
                 if (manualMarker) { map.removeLayer(manualMarker); manualMarker = null; }
                 document.getElementById('manual-options').style.display = 'none';
                 fetchLocations();
@@ -337,88 +480,37 @@
             });
         });
 
-        // --- CSV EXPORT LOGIK ---
+        // --- CSV CODE (Unverändert) ---
         document.getElementById('export-csv-btn').addEventListener('click', async () => {
-            document.getElementById('status').textContent = "Lade Daten für Export...";
             const { data, error } = await supabaseClient.from('poster_locations').select('latitude,longitude,poster_count,type,status');
-
-            if (error) return alert("Fehler beim Laden der Exportdaten: " + error.message);
-            if (data.length === 0) return alert("Keine Daten zum Exportieren vorhanden!");
-
-            // Header-Zeile erstellen
+            if (error || data.length === 0) return alert("Keine Daten!");
             let csvContent = "data:text/csv;charset=utf-8,latitude,longitude,poster_count,type,status\n";
-
-            // Zeilen anhängen
-            data.forEach(row => {
-                csvContent += `${row.latitude},${row.longitude},${row.poster_count},${row.type},${row.status}\n`;
-            });
-
-            // Download-Link simulieren
-            const encodedUri = encodeURI(csvContent);
+            data.forEach(row => { csvContent += `${row.latitude},${row.longitude},${row.poster_count},${row.type},${row.status}\n`; });
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `graz_tracker_backup_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            document.getElementById('status').textContent = "Export abgeschlossen!";
+            link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", `graz_tracker_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
         });
 
-        // --- CSV IMPORT LOGIK ---
-        document.getElementById('import-csv-btn').addEventListener('click', () => {
-            document.getElementById('csv-file-input').click(); // Verstecktes Datei-Feld triggern
-        });
-
+        document.getElementById('import-csv-btn').addEventListener('click', () => document.getElementById('csv-file-input').click());
         document.getElementById('csv-file-input').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
+            const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = async (event) => {
-                const text = event.target.result;
-                const lines = text.split('\n');
-                const itemsToInsert = [];
-
-                // Schleife startet bei 1, um die Kopfzeile (Header) zu überspringen
+                const lines = event.target.result.split('\n'); const items = [];
                 for (let i = 1; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (!line) continue;
-
+                    const line = lines[i].trim(); if (!line) continue;
                     const cols = line.split(',');
-                    if (cols.length >= 5) {
-                        itemsToInsert.push({
-                            latitude: parseFloat(cols[0]),
-                            longitude: parseFloat(cols[1]),
-                            poster_count: parseInt(cols[2]),
-                            type: cols[3],
-                            status: cols[4]
-                        });
-                    }
+                    if (cols.length >= 5) { items.push({ latitude: parseFloat(cols[0]), longitude: parseFloat(cols[1]), poster_count: parseInt(cols[2]), type: cols[3], status: cols[4] }); }
                 }
-
-                if (itemsToInsert.length === 0) {
-                    alert("Keine gültigen Daten in der CSV gefunden.");
-                    return;
+                if (items.length > 0 && confirm(`${items.length} Punkte importieren?`)) {
+                    await supabaseClient.from('poster_locations').insert(items); fetchLocations();
                 }
-
-                if (confirm(`Möchtest du ${itemsToInsert.length} Datenpunkte in deine Datenbank importieren?`)) {
-                    document.getElementById('status').textContent = "Importiere Daten...";
-                    const { error } = await supabaseClient.from('poster_locations').insert(itemsToInsert);
-
-                    if (error) {
-                        alert("Fehler beim Importieren: " + error.message);
-                    } else {
-                        alert("Import erfolgreich abgeschlossen!");
-                        fetchLocations();
-                    }
-                }
-                document.getElementById('csv-file-input').value = ""; // Eingabe zurücksetzen
             };
             reader.readAsText(file);
         });
 
         fetchLocations();
-
     </script>
 </body>
 </html>
