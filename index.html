@@ -37,16 +37,18 @@
         /* --- TOP BAR (Status & Backup) --- */
         #top-bar {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            right: 10px;
+            top: 15px;
+            right: 15px; /* Jetzt fest rechts positioniert */
+            left: auto;  /* Hebt die volle Breite auf */
+            width: auto;
+            min-width: 44px;
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(4px);
-            padding: 10px 14px;
+            padding: 10px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             z-index: 1000;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         #status {
             font-weight: 500;
@@ -261,19 +263,19 @@
 
     <!-- Kompakte Status-Bar oben -->
     <div id="top-bar">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div id="status">Echtzeit-Ortung startet...</div>
-            <button id="settings-toggle" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 5px;">⚙️</button>
+        <div style="display: flex; justify-content: flex-end; align-items: center;">
+            <!-- Das Status-Span ist jetzt versteckt oder entfernt -->
+            <span id="status" style="display: none;"></span>
+            <button id="settings-toggle" style="background: none; border: none; font-size: 22px; cursor: pointer; padding: 0; line-height: 1;">⚙️</button>
         </div>
 
-        <!-- Versteckter Bereich für Backup (nur sichtbar nach Klick auf Zahnrad) -->
+        <!-- Backup-Menü (bleibt gleich) -->
         <div id="settings-menu" style="display: none; border-top: 1px solid #eee; margin-top: 10px; padding-top: 10px;">
             <div class="backup-row">
                 <button id="export-csv-btn" class="btn-mini" style="background: var(--success); flex: 1;">📥 Export CSV</button>
                 <button id="import-csv-btn" class="btn-mini" style="background: #17a2b8; flex: 1;">📤 Import CSV</button>
                 <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
             </div>
-            <div style="font-size: 10px; color: #888; margin-top: 8px; text-align: center;">Datenbank Backup & Wiederherstellung</div>
         </div>
     </div>
 
