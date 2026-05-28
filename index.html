@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graz Poster Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #controls {
+            padding: 15px;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #add-manual-btn { background: #28a745; display: none; }
+        #add-manual-btn:hover { background: #218838; }
+        #map { flex-grow: 1; }
+
+        .popup-controls {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .popup-btn {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .btn-dec { background: #dc3545; }
+        .btn-dec:hover { background: #bd2130; }
+
+        .poster-badge {
+            background: #007bff;
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+
+        .live-dot {
+            background: #00bcd4;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 4px rgba(0, 188, 212, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <button id="add-poster-btn" disabled>📡 Waiting for GPS...</button>
+        <button id="add-manual-btn">📍 Add Poster at Selected House</button>
+        <span id="status">Initializing real-time tracking... Click map to select a house manually.</span>
+    </div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+    <script>
+        const SUPABASE_URL = "https://jlijxaavapxylbiouqzq.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_YEwN3wWWS2NddJOxVoq-qw_H5DpzveH";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Map initialized focused on Graz
+        const map = L.map('map').setView([47.0707, 15.4395], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19 // Allows zooming deeply into city structures
+        }).addTo(map);
+
+        const markers = {};
+        let currentPos = null;
+        let liveLocationMarker = null;
+
+        let manualSelectedPos = null;
+        let manualMarker = null;
+
+        async function fetchLocations() {
+            const { data, error } = await supabaseClient.from('poster_locations').select('*');
+            if (error) return console.error(error);
+
+            Object.keys(markers).forEach(id => map.removeLayer(markers[id]));
+
+            data.forEach(loc => {
+                const customIcon = L.divIcon({
+                    className: 'poster-badge',
+                    html: `<span>${loc.poster_count}</span>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+
+                const marker = L.marker([loc.latitude, loc.longitude], { icon: customIcon }).addTo(map);
+
+                const popupContent = document.createElement('div');
+                popupContent.innerHTML = `
+                    <strong>Posters here: ${loc.poster_count}</strong><br>
+                    <div class="popup-controls">
+                        <button class="popup-btn btn-add" data-id="${loc.id}">+1</button>
+                        <button class="popup-btn btn-dec" data-id="${loc.id}">-1</button>
+                    </div>
+                `;
+
+                popupContent.querySelector('.btn-add').addEventListener('click', () => updateCount(loc.id, loc.poster_count + 1));
+                popupContent.querySelector('.btn-dec').addEventListener('click', () => updateCount(loc.id, loc.poster_count - 1));
+
+                marker.bindPopup(popupContent);
+                markers[loc.id] = marker;
+            });
+        }
+
+        async function updateCount(id, newCount) {
+            if (newCount <= 0) {
+                const { error } = await supabaseClient.from('poster_locations').delete().eq('id', id);
+                if (error) console.error(error);
+            } else {
+                const { error } = await supabaseClient.from('poster_locations').update({ poster_count: newCount }).eq('id', id);
+                if (error) console.error(error);
+            }
+            fetchLocations();
+        }
+
+        // --- REAL TIME GPS TRACKING ENGINE ---
+        if (!navigator.geolocation) {
+            document.getElementById('status').textContent = "Geolocation not supported.";
+        } else {
+            navigator.geolocation.watchPosition((position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                currentPos = { lat, lon };
+
+                const addBtn = document.getElementById('add-poster-btn');
+                addBtn.disabled = false;
+                addBtn.textContent = "➕ Add Poster at GPS Position";
+
+                if (document.getElementById('status').textContent.startsWith("Initializing")) {
+                    document.getElementById('status').textContent = "Tracking active. Tap map to drop pins manually.";
+                }
+
+                const liveIcon = L.divIcon({ className: 'live-dot', iconSize: [14, 14], iconAnchor: [7, 7] });
+                if (liveLocationMarker) {
+                    liveLocationMarker.setLatLng([lat, lon]);
+                } else {
+                    liveLocationMarker = L.marker([lat, lon], { icon: liveIcon }).addTo(map);
+                }
+
+                // ALWAYS zoom and center map to live coordinates with structural details (Zoom level 18)
+                map.setView([lat, lon], 18);
+
+            }, (err) => {
+                console.error("GPS tracking error:", err.message);
+            }, {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000
+            });
+        }
+
+        // --- MANUAL MAP CLICK LISTENER ---
+        map.on('click', (e) => {
+            manualSelectedPos = e.latlng;
+
+            if (manualMarker) {
+                manualMarker.setLatLng(manualSelectedPos);
+            } else {
+                manualMarker = L.marker(manualSelectedPos).addTo(map);
+            }
+
+            document.getElementById('add-manual-btn').style.display = 'inline-block';
+            document.getElementById('status').textContent = `House selected at: ${manualSelectedPos.lat.toFixed(4)}, ${manualSelectedPos.lng.toFixed(4)}`;
+        });
+
+        // --- SAVE FLOWS ---
+        async function savePosterToDB(lat, lon) {
+            const status = document.getElementById('status');
+            status.textContent = "Saving to database...";
+
+            const { error } = await supabaseClient.from('poster_locations').insert([{ latitude: lat, longitude: lon }]);
+
+            if (error) {
+                status.textContent = "Error saving to DB.";
+                console.error(error);
+            } else {
+                status.textContent = "Poster logged successfully!";
+                fetchLocations();
+            }
+        }
+
+        document.getElementById('add-poster-btn').addEventListener('click', () => {
+            if (currentPos) savePosterToDB(currentPos.lat, currentPos.lon);
+        });
+
+        document.getElementById('add-manual-btn').addEventListener('click', () => {
+            if (manualSelectedPos) {
+                savePosterToDB(manualSelectedPos.lat, manualSelectedPos.lng);
+
+                if (manualMarker) {
+                    map.removeLayer(manualMarker);
+                    manualMarker = null;
+                }
+                document.getElementById('add-manual-btn').style.display = 'none';
+            }
+        });
+
+        fetchLocations();
+    </script>
+</body>
+</html>
