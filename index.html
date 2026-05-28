@@ -540,6 +540,13 @@
         });
 
         fetchLocations();
+
+        supabaseClient
+          .channel('public:poster_locations')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'poster_locations' }, () => {
+            fetchLocations();
+          })
+          .subscribe();
     </script>
 </body>
 </html>
