@@ -13,7 +13,7 @@
             --warning: #ffc107;
             --favorite: #fd7e14;
             --dark: #212529;
-            --sticker: #e83e8c;
+            --sticker: #007a3d;
         }
 
         body {
@@ -200,10 +200,35 @@
         .badge-yellow-q { background: var(--warning); color: black; font-size: 15px; }
         .badge-star { background: var(--favorite); font-size: 15px; }
 
-        .sticker-square {
-            background: var(--sticker);
-            border: 2px solid white;
-            border-radius: 4px;
+        .sticker-flag {
+            width: 20px;
+            height: 12px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            border: 1px solid white;
+        }
+        /* Die drei Streifen */
+        .sticker-flag::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 33.33%;
+            top: 0; background: #000; /* Schwarz */
+            box-shadow: 0 4px 0 #fff, 0 8px 0 #007a3d; /* Weiß & Grün */
+        }
+        /* Das rote Dreieck */
+        .sticker-flag::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 0;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+            border-left: 8px solid #ee2a35; /* Rot */
         }
         .live-dot {
             background: #00bcd4;
@@ -362,7 +387,11 @@
                 let customIcon;
 
                 if (loc.type === 'sticker') {
-                    customIcon = L.divIcon({ className: 'sticker-square', iconSize: [16, 16], iconAnchor: [8, 8] });
+                    customIcon = L.divIcon({
+                        className: 'sticker-flag',
+                        iconSize: [20, 12],
+                        iconAnchor: [10, 6]
+                    });
                 } else {
                     let className = 'poster-badge';
                     let htmlContent = `<span>${loc.poster_count}</span>`;
