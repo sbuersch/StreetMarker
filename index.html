@@ -445,30 +445,35 @@
             }
         }
 
-        // --- GPS ENGINE BEREINIGT ---
-        if (navigator.geolocation) {
-            navigator.geolocation.watchPosition((position) => {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                currentPos = { lat, lon };
+        // --- GPS ENGINE (Safari optimiert & fehlerfrei) ---
+        function startTracking() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    currentPos = { lat, lon };
 
-                document.getElementById('add-gps-btn').disabled = false;
-                document.getElementById('sticker-btn').disabled = false;
+                    document.getElementById('add-gps-btn').disabled = false;
+                    document.getElementById('sticker-btn').disabled = false;
 
-                const liveIcon = L.divIcon({ className: 'live-dot', iconSize: [14, 14], iconAnchor: [7, 7] });
-                if (liveLocationMarker) { liveLocationMarker.setLatLng([lat, lon]); }
-                else { liveLocationMarker = L.marker([lat, lon], { icon: liveIcon }).addTo(map); }
+                    const liveIcon = L.divIcon({ className: 'live-dot', iconSize: [14, 14], iconAnchor: [7, 7] });
+                    if (liveLocationMarker) { liveLocationMarker.setLatLng([lat, lon]); }
+                    else { liveLocationMarker = L.marker([lat, lon], { icon: liveIcon }).addTo(map); }
 
-                map.setView([lat, lon], 18);
-            }, (err) => {
-                console.error("GPS Fehler:", err);
-            }, {
-                enableHighAccuracy: true,
-                maximumAge: 0
-            });
-        } else {
-            console.error("Geolocation wird von diesem Browser nicht unterstützt.");
+                    map.setView([lat, lon], 18);
+                }, (err) => {
+                    console.error("GPS Fehler:", err);
+                }, {
+                    enableHighAccuracy: true,
+                    maximumAge: 0
+                });
+            } else {
+                console.error("Geolocation wird nicht unterstützt.");
+            }
         }
+
+        // Starte GPS sofort beim Laden
+        startTracking();
 
         map.on('click', (e) => {
             if (currentMode !== 'poster') return;
@@ -541,16 +546,16 @@
             reader.readAsText(file);
         });
 
-        // Modus direkt beim Start setzen
+        // Erst-Initialisierung im Sticker-Modus
         switchMode('sticker');
 
-        // Supabase Realtime Subscription
-        supabaseClient
-          .channel('public:poster_locations')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'poster_locations' }, () => {
-            fetchLocations();
-          })
-          .subscribe();
+        // --- NEU: GEWÜNSCHTES PULL-INTERVALL ALLE 30 SEKUNDEN ---
+        setInterval(() => {
+            // Lädt die Marker nur neu, wenn nicht gerade ein Haus manuell bearbeitet wird
+            if (document.getElementById('manual-options').style.display !== 'block') {
+                fetchLocations();
+            }
+        }, 30000);
     </script>
 </body>
 </html>
