@@ -341,12 +341,10 @@
                 document.getElementById('mode-poster').classList.add('active');
                 document.getElementById('add-gps-btn').style.display = 'flex';
                 document.getElementById('sticker-btn').style.display = 'none';
-                document.getElementById('status').textContent = "Poster-Modus aktiv.";
             } else {
                 document.getElementById('mode-sticker').classList.add('active');
                 document.getElementById('add-gps-btn').style.display = 'none';
                 document.getElementById('sticker-btn').style.display = 'flex';
-                document.getElementById('status').textContent = "Sticker-Modus aktiv.";
             }
             fetchLocations();
         }
@@ -354,23 +352,22 @@
         // --- SETTINGS TOGGLE LOGIK ---
         let settingsVisible = false;
         document.getElementById('settings-toggle').addEventListener('click', (e) => {
-            e.stopPropagation(); // Verhindert Klicks auf die Karte durch die Bar
+            e.stopPropagation();
             settingsVisible = !settingsVisible;
             const menu = document.getElementById('settings-menu');
             const btn = document.getElementById('settings-toggle');
 
             if (settingsVisible) {
                 menu.style.display = 'block';
-                btn.textContent = '✖️'; // Schließen-Symbol
+                btn.textContent = '✖️';
                 btn.style.fontSize = '16px';
             } else {
                 menu.style.display = 'none';
-                btn.textContent = '⚙️'; // Zahnrad-Symbol
+                btn.textContent = '⚙️';
                 btn.style.fontSize = '20px';
             }
         });
 
-        // Optional: Menü schließen, wenn man auf die Karte klickt
         map.on('mousedown', () => {
             if (settingsVisible) {
                 settingsVisible = false;
@@ -447,6 +444,7 @@
             }
         }
 
+        // --- GPS ENGINE BEREINIGT ---
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition((position) => {
                 const lat = position.coords.latitude;
@@ -456,16 +454,19 @@
                 document.getElementById('add-gps-btn').disabled = false;
                 document.getElementById('sticker-btn').disabled = false;
 
-                if(document.getElementById('status').textContent.includes("startet")) {
-                    document.getElementById('status').textContent = "Echtzeit-Ortung aktiv.";
-                }
-
                 const liveIcon = L.divIcon({ className: 'live-dot', iconSize: [14, 14], iconAnchor: [7, 7] });
                 if (liveLocationMarker) { liveLocationMarker.setLatLng([lat, lon]); }
                 else { liveLocationMarker = L.marker([lat, lon], { icon: liveIcon }).addTo(map); }
 
                 map.setView([lat, lon], 18);
-            }, (err) => console.error(err), { enableHighAccuracy: true });
+            }, (err) => {
+                console.error("GPS Fehler:", err);
+            }, {
+                enableHighAccuracy: true,
+                maximumAge: 0
+            });
+        } else {
+            console.error("Geolocation wird von diesem Browser nicht unterstützt.");
         }
 
         map.on('click', (e) => {
@@ -479,15 +480,13 @@
         });
 
         async function saveData(lat, lon, type, status, count = 1) {
-            document.getElementById('status').textContent = "Speichere...";
             const { error } = await supabaseClient.from('poster_locations').insert([
                 { latitude: lat, longitude: lon, type: type, status: status, poster_count: count }
             ]);
 
             if (error) {
-                document.getElementById('status').textContent = "Fehler!";
+                console.error("Fehler beim Speichern:", error);
             } else {
-                document.getElementById('status').textContent = "Gespeichert!";
                 if (manualMarker) { map.removeLayer(manualMarker); manualMarker = null; }
                 document.getElementById('manual-options').style.display = 'none';
                 fetchLocations();
@@ -511,7 +510,7 @@
             });
         });
 
-        // --- CSV CODE (Unverändert) ---
+        // --- CSV CODE ---
         document.getElementById('export-csv-btn').addEventListener('click', async () => {
             const { data, error } = await supabaseClient.from('poster_locations').select('latitude,longitude,poster_count,type,status');
             if (error || data.length === 0) return alert("Keine Daten!");
@@ -541,8 +540,10 @@
             reader.readAsText(file);
         });
 
+        // Modus direkt beim Start setzen
         switchMode('sticker');
 
+        // Supabase Realtime Subscription
         supabaseClient
           .channel('public:poster_locations')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'poster_locations' }, () => {
