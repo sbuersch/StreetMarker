@@ -326,7 +326,7 @@
         let liveLocationMarker = null;
         let manualSelectedPos = null;
         let manualMarker = null;
-        let currentMode = 'poster';
+        let currentMode = 'sticker';
 
         document.getElementById('mode-poster').addEventListener('click', () => switchMode('poster'));
         document.getElementById('mode-sticker').addEventListener('click', () => switchMode('sticker'));
@@ -541,7 +541,7 @@
             reader.readAsText(file);
         });
 
-        fetchLocations();
+        switchMode('sticker');
 
         supabaseClient
           .channel('public:poster_locations')
