@@ -80,24 +80,25 @@
             gap: 12px;
         }
         .btn-fab {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
+            height: 54px;
+            padding: 0 24px;
+            border-radius: 27px; /* Ergonomische Pillen-Form */
             border: none;
             color: white;
-            font-size: 24px;
+            font-size: 16px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.2s;
+            gap: 8px; /* Abstand zwischen Icon und Text */
+            font-weight: bold;
+            transition: transform 0.2s, background-color 0.2s;
         }
-        .btn-fab:active { transform: scale(0.9); }
+        .btn-fab:active { transform: scale(0.95); }
         #add-gps-btn { background: var(--primary); }
         #sticker-btn { background: var(--sticker); display: none; }
         .btn-fab:disabled { background: #ccc !important; box-shadow: none; }
-
         /* --- MANUELLES OPTIONS-PANEL (Slide-Up) --- */
         #manual-options {
             position: absolute;
@@ -281,9 +282,9 @@
 
     <div id="map"></div>
 
-    <div class="fab-container">
-        <button id="add-gps-btn" class="btn-fab" disabled>➕</button>
-        <button id="sticker-btn" class="btn-fab" disabled>🎯</button>
+    <div class="fab-container" style="left: 16px; right: 16px;">
+        <button id="add-gps-btn" class="btn-fab" disabled>➕ Plakat hinzufügen</button>
+        <button id="sticker-btn" class="btn-fab" disabled>🎯 Sticker hinzufügen</button>
     </div>
 
     <div id="manual-options">
