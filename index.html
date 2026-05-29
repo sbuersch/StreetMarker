@@ -91,13 +91,32 @@
             justify-content: center;
             gap: 8px;
             font-weight: bold;
-            transition: transform 0.2s, background-color 0.2s;
+            transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-fab-small {
+            height: 40px;
+            font-size: 14px;
+            border-radius: 20px;
+            background: #6c757d;
         }
 
         .btn-fab:active { transform: scale(0.95); }
         #add-gps-btn { background: var(--primary); }
         #sticker-btn { background: var(--sticker); display: none; }
         .btn-fab:disabled { background: #ccc !important; box-shadow: none; }
+
+        @keyframes pulse-animation {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+            70% { transform: scale(1.03); box-shadow: 0 0 0 12px rgba(255, 193, 7, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+        }
+
+        .pulse-active {
+            animation: pulse-animation 2s infinite;
+            background: var(--warning) !important;
+            color: black !important;
+        }
 
         #manual-options {
             position: absolute;
@@ -265,6 +284,7 @@
     <div class="fab-container">
         <button id="add-gps-btn" class="btn-fab" disabled>➕ Plakat hinzufügen</button>
         <button id="sticker-btn" class="btn-fab" disabled>🎯 Sticker hinzufügen</button>
+        <button id="auto-track-btn" class="btn-fab btn-fab-small" style="display: none;" disabled>⏱️ Auto Track - Sticker alle 35sek hinzufügen (Off)</button>
     </div>
 
     <div id="manual-options">
@@ -313,6 +333,10 @@
         let currentMode = 'sticker';
         let hasInitialZoom = false;
 
+        // Auto Track Variables
+        let autoTrackActive = false;
+        let autoTrackInterval = null;
+
         document.getElementById('mode-poster').addEventListener('click', () => switchMode('poster'));
         document.getElementById('mode-sticker').addEventListener('click', () => switchMode('sticker'));
 
@@ -326,10 +350,18 @@
                 document.getElementById('mode-poster').classList.add('active');
                 document.getElementById('add-gps-btn').style.display = 'flex';
                 document.getElementById('sticker-btn').style.display = 'none';
+
+                // Disable Auto Track when switching away from sticker mode
+                if (autoTrackActive) {
+                    toggleAutoTrack();
+                }
+                document.getElementById('auto-track-btn').style.display = 'none';
+
             } else {
                 document.getElementById('mode-sticker').classList.add('active');
                 document.getElementById('add-gps-btn').style.display = 'none';
                 document.getElementById('sticker-btn').style.display = 'flex';
+                document.getElementById('auto-track-btn').style.display = 'flex';
             }
             fetchLocations();
         }
@@ -438,6 +470,7 @@
 
                     document.getElementById('add-gps-btn').disabled = false;
                     document.getElementById('sticker-btn').disabled = false;
+                    document.getElementById('auto-track-btn').disabled = false;
 
                     const liveIcon = L.divIcon({ className: 'live-dot', iconSize: [14, 14], iconAnchor: [7, 7] });
                     if (liveLocationMarker) { liveLocationMarker.setLatLng([lat, lon]); }
@@ -500,6 +533,31 @@
         document.getElementById('sticker-btn').addEventListener('click', () => {
             if (currentPos) saveData(currentPos.lat, currentPos.lon, 'sticker', 'angebracht', 1);
         });
+
+        // Auto Track Logic
+        function toggleAutoTrack() {
+            autoTrackActive = !autoTrackActive;
+            const btn = document.getElementById('auto-track-btn');
+
+            if (autoTrackActive) {
+                btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (ON)';
+                btn.classList.add('pulse-active');
+
+                // Set the interval for 35 seconds
+                autoTrackInterval = setInterval(() => {
+                    if (currentPos && currentMode === 'sticker') {
+                        saveData(currentPos.lat, currentPos.lon, 'sticker', 'angebracht', 1);
+                    }
+                }, 35000);
+            } else {
+                btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (Off)';
+                btn.classList.remove('pulse-active');
+                clearInterval(autoTrackInterval);
+                autoTrackInterval = null;
+            }
+        }
+
+        document.getElementById('auto-track-btn').addEventListener('click', toggleAutoTrack);
 
         document.querySelectorAll('.btn-status').forEach(button => {
             button.addEventListener('click', (e) => {
