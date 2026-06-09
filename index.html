@@ -727,26 +727,37 @@
             const btn = document.getElementById('auto-track-btn');
 
             if (autoTrackActive) {
+                // --- HANDY FIX START ---
+                // AudioContext initialisieren/aktivieren genau in diesem Klick-Event
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                // Einmalig einen lautlosen Puffer abspielen, um Audio-Berechtigung zu sichern
+                const buffer = audioCtx.createBuffer(1, 1, 22050);
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioCtx.destination);
+                source.start(0);
+                // --- HANDY FIX END ---
+
                 btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (ON) 🎵';
                 btn.classList.add('pulse-active');
 
-                // Wichtig: Vorhandenes Interval löschen falls vorhanden
                 if (autoTrackInterval) {
                     clearInterval(autoTrackInterval);
                     autoTrackInterval = null;
                 }
 
-                // RESET isFirstRun für neuen Aktivierungszyklus
                 isFirstRun = true;
 
-                // Funktion die das erste Mal sofort ausführt und dann das Interval setzt
                 const startAutoTracking = () => {
-                    // Sofortige Ausführung beim Start (nicht erst nach 35 Sekunden warten)
                     if (isFirstRun) {
                         autoTrackCallback();
                         isFirstRun = false;
                     }
-                    // Dann reguläres Intervall starten
                     if (autoTrackInterval) clearInterval(autoTrackInterval);
                     autoTrackInterval = setInterval(() => {
                         autoTrackCallback();
@@ -761,7 +772,7 @@
                     clearInterval(autoTrackInterval);
                     autoTrackInterval = null;
                 }
-                isFirstRun = true; // Reset für nächste Aktivierung
+                isFirstRun = true;
             }
         }
 
