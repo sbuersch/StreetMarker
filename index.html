@@ -2,721 +2,609 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Plakatierungsmodus - Sticker Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Graz Poster & Sticker Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --favorite: #fd7e14;
+            --dark: #212529;
+            --sticker: #007a3d;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f2f5;
-            padding: 20px;
-            transition: background 0.3s;
-        }
-
-        body.mode-erlaubt { background: linear-gradient(135deg, #f0f2f5 0%, #e8f5e9 100%); }
-        body.mode-verboten { background: linear-gradient(135deg, #f0f2f5 0%, #ffebee 100%); }
-        body.mode-vorschlaege { background: linear-gradient(135deg, #f0f2f5 0%, #fff9e6 100%); }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        /* Mode Switcher */
-        .mode-switcher {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-bottom: 20px;
-            background: white;
-            padding: 15px;
-            border-radius: 50px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            flex-wrap: wrap;
-        }
-
-        .mode-btn {
-            padding: 12px 30px;
-            font-size: 16px;
-            font-weight: 600;
-            border: none;
-            border-radius: 40px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: #e0e0e0;
-            color: #666;
-        }
-
-        .mode-btn.active {
-            background: #007bff;
-            color: white;
-            box-shadow: 0 2px 8px rgba(0,123,255,0.3);
-        }
-
-        .mode-btn:nth-child(1).active { background: #28a745; }
-        .mode-btn:nth-child(2).active { background: #dc3545; }
-        .mode-btn:nth-child(3).active { background: #ffc107; color: #333; }
-
-        /* Control Bar */
-        .control-bar {
-            background: white;
-            padding: 15px 25px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .track-toggle {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 34px;
-        }
-
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: 0.4s;
-            border-radius: 34px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 26px;
-            width: 26px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: 0.4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: #ffc107;
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-
-        .track-label {
-            font-weight: 600;
-            font-size: 16px;
-        }
-
-        .track-status {
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .track-status.active {
-            background: #ffc107;
-            color: #333;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
-        }
-
-        .stats {
-            display: flex;
-            gap: 20px;
-            font-size: 14px;
-        }
-
-        .stat {
-            background: #f8f9fa;
-            padding: 5px 12px;
-            border-radius: 20px;
-        }
-
-        .wake-lock-status {
-            font-size: 12px;
-            padding: 5px 10px;
-            border-radius: 20px;
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-
-        /* Legend */
-        .legend {
-            background: white;
-            padding: 15px 25px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            flex-wrap: wrap;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .legend-color {
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-        }
-
-        .legend-color.green { background: #28a745; }
-        .legend-color.red { background: #dc3545; }
-        .legend-color.yellow { background: #ffc107; }
-        .legend-color.blue { background: #17a2b8; }
-
-        /* Grid Layout */
-        .plakat-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 25px;
-        }
-
-        /* Plakat Card */
-        .plakat-card {
-            background: white;
-            border-radius: 12px;
+            flex-direction: column;
+            height: 100vh;
             overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
-            position: relative;
+            background: #f8f9fa;
         }
 
-        .plakat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        #map {
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
         }
 
-        .plakat-card.tracked {
-            animation: highlight 0.5s ease;
-        }
-
-        @keyframes highlight {
-            0% { background: #fff9c4; transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { background: white; transform: scale(1); }
-        }
-
-        /* Mode-specific borders and highlights */
-        .mode-erlaubt .plakat-card {
-            border: 3px solid #28a745;
-        }
-
-        .mode-verboten .plakat-card {
-            border: 3px solid #dc3545;
-        }
-
-        .mode-vorschlaege .plakat-card {
-            border: 3px solid #ffc107;
-            background: linear-gradient(135deg, white 0%, #fffef5 100%);
-        }
-
-        /* Yellow marker for suggestions mode */
-        .suggestion-marker {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 50px;
-            height: 50px;
-            background: #ffc107;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            z-index: 10;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-
-        .track-marker {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            width: 40px;
-            height: 40px;
-            background: #17a2b8;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            z-index: 10;
-        }
-
-        .pin-icon {
+        #top-bar {
             position: absolute;
             top: 15px;
             right: 15px;
-            font-size: 24px;
-            opacity: 0.8;
+            left: auto;
+            width: auto;
+            min-width: 44px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(4px);
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            z-index: 1000;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .mode-erlaubt .pin-icon { color: #28a745; }
-        .mode-verboten .pin-icon { color: #dc3545; }
-        .mode-vorschlaege .pin-icon { color: #ffc107; }
-
-        /* Image */
-        .plakat-image {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            background: #f8f9fa;
+        .backup-row {
+            display: flex;
+            gap: 8px;
+            border-top: 1px solid #eee;
+            padding-top: 6px;
         }
 
-        /* Info */
-        .plakat-info {
-            padding: 15px;
-        }
-
-        .plakat-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #333;
-        }
-
-        .plakat-location {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .plakat-price {
-            font-size: 20px;
-            font-weight: bold;
-            color: #007bff;
-            margin-top: 10px;
-        }
-
-        .suggestion-badge {
-            display: inline-block;
-            background: #ffc107;
-            color: #333;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 10px;
-        }
-
-        .track-badge {
-            display: inline-block;
-            background: #17a2b8;
+        .btn-mini {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 6px;
+            border: none;
             color: white;
-            padding: 4px 12px;
+            cursor: pointer;
+        }
+
+        .fab-container {
+            position: absolute;
+            right: 16px;
+            bottom: 90px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            left: 16px;
+        }
+
+        .btn-fab {
+            height: 54px;
+            padding: 0 24px;
+            border-radius: 27px;
+            border: none;
+            color: white;
+            font-size: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: bold;
+            transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-fab-small {
+            height: 40px;
+            font-size: 14px;
             border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 10px;
+            background: #6c757d;
         }
 
-        h1 {
-            text-align: center;
+        .btn-fab:active { transform: scale(0.95); }
+        #add-gps-btn { background: var(--primary); }
+        #sticker-btn { background: var(--sticker); display: none; }
+        .btn-fab:disabled { background: #ccc !important; box-shadow: none; }
+
+        @keyframes pulse-animation {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+            70% { transform: scale(1.03); box-shadow: 0 0 0 12px rgba(255, 193, 7, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+        }
+
+        .pulse-active {
+            animation: pulse-animation 2s infinite;
+            background: var(--warning) !important;
+            color: black !important;
+        }
+
+        #manual-options {
+            position: absolute;
+            bottom: 80px;
+            left: 10px;
+            right: 10px;
+            background: white;
+            padding: 14px;
+            border-radius: 16px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: none;
+        }
+
+        #manual-options strong {
+            display: block;
             margin-bottom: 10px;
-            color: #333;
+            font-size: 14px;
+            color: var(--dark);
         }
 
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
+        .grid-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
         }
 
-        @media (max-width: 768px) {
-            .control-bar {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .track-toggle {
-                justify-content: space-between;
-            }
-
-            .mode-btn {
-                padding: 8px 20px;
-                font-size: 14px;
-            }
+        .btn-status {
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
+
+        #bottom-nav {
+            height: 70px;
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+            z-index: 1000;
+            display: flex;
+            border-top: 1px solid #eec;
+        }
+
+        .nav-item {
+            flex: 1;
+            background: none;
+            border: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            color: #6c757d;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            color: var(--dark);
+            font-weight: 700;
+        }
+
+        .nav-item .icon {
+            font-size: 20px;
+            padding: 4px 16px;
+            border-radius: 16px;
+            transition: background 0.2s;
+        }
+
+        .nav-item.active .icon {
+            background: #e9ecef;
+            color: var(--dark);
+        }
+
+        .leaflet-touch .leaflet-bar {
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .leaflet-top.leaflet-left {
+            top: 85px;
+        }
+
+        .poster-badge, .sticker-badge, .live-dot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .poster-badge {
+            background: var(--primary);
+            border: 2px solid white;
+            border-radius: 50%;
+            font-size: 14px;
+        }
+
+        .sticker-badge {
+            background: var(--sticker);
+            border: 2px solid white;
+            border-radius: 50%;
+            font-size: 16px;
+        }
+
+        .badge-red-x { background: var(--danger); font-size: 15px; }
+        .badge-yellow-q { background: var(--warning); color: black; font-size: 15px; }
+        .badge-star { background: var(--favorite); font-size: 15px; }
+
+        .live-dot {
+            background: #00bcd4;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 5px rgba(0, 188, 212, 0.4);
+        }
+
+        .popup-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .popup-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: none;
+            color: white;
+            font-weight: bold;
+        }
+
+        .btn-add { background: var(--success); }
+        .btn-dec { background: var(--warning); color: black; }
+        .btn-del { background: var(--danger); }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📢 Plakatierungsmodus mit Sticker-Tracking</h1>
-        <p class="subtitle">Wählen Sie einen Modus und tracken Sie markierte Sticker</p>
 
-        <!-- Mode Switcher -->
-        <div class="mode-switcher">
-            <button class="mode-btn" data-mode="erlaubt">✅ Erlaubt</button>
-            <button class="mode-btn" data-mode="verboten">❌ Verboten</button>
-            <button class="mode-btn" data-mode="vorschlaege">💡 Vorschläge</button>
+    <div id="top-bar">
+        <div style="display: flex; justify-content: flex-end; align-items: center;">
+            <button id="settings-toggle" style="background: none; border: none; font-size: 22px; cursor: pointer; padding: 0; line-height: 1;">⚙️</button>
         </div>
 
-        <!-- Control Bar -->
-        <div class="control-bar">
-            <div class="track-toggle">
-                <span class="track-label">🎯 Autotrack-Modus:</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="autoTrackToggle">
-                    <span class="slider"></span>
-                </label>
-                <span id="trackStatus" class="track-status">Inaktiv</span>
-            </div>
-            <div class="stats">
-                <div class="stat">📊 Getrackt: <span id="trackCount">0</span></div>
-                <div class="stat">🏷️ Insgesamt: <span id="totalCount">0</span></div>
-            </div>
-            <div id="wakeLockStatus" class="wake-lock-status">🔓 Display-Wake Lock: Aktivieren Sie Autotrack</div>
-        </div>
-
-        <!-- Legend -->
-        <div class="legend">
-            <div class="legend-item">
-                <div class="legend-color green"></div>
-                <span>✅ Erlaubte Plakatierungen</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color red"></div>
-                <span>❌ Verbote / Keine Plakatierung</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color yellow"></div>
-                <span>💡 Vorschläge für mögliche Plakatierungen</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color blue"></div>
-                <span>🎯 Getrackte Sticker</span>
+        <div id="settings-menu" style="display: none; border-top: 1px solid #eee; margin-top: 10px; padding-top: 10px;">
+            <div class="backup-row">
+                <button id="export-csv-btn" class="btn-mini" style="background: var(--success); flex: 1;">📥 Export CSV</button>
+                <button id="import-csv-btn" class="btn-mini" style="background: #17a2b8; flex: 1;">📤 Import CSV</button>
+                <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
             </div>
         </div>
-
-        <!-- Plakat Grid -->
-        <div id="plakatGrid" class="plakat-grid"></div>
     </div>
 
+    <div id="map"></div>
+
+    <div class="fab-container">
+        <button id="add-gps-btn" class="btn-fab" disabled>➕ Plakat hinzufügen</button>
+        <button id="sticker-btn" class="btn-fab" disabled>🎯 Sticker hinzufügen</button>
+        <button id="auto-track-btn" class="btn-fab btn-fab-small" style="display: none;" disabled>⏱️ Auto Track - Sticker alle 35sek hinzufügen (Off)</button>
+    </div>
+
+    <div id="manual-options">
+        <strong id="manual-title">Haus-Aktion wählen:</strong>
+        <div class="grid-options" id="poster-options">
+            <button class="btn-status" data-type="poster" style="background: var(--primary);" data-status="angebracht">💙 Angebracht</button>
+            <button class="btn-status" data-type="poster" style="background: var(--danger);" data-status="nicht_erwuenscht">❌ Abgelehnt</button>
+            <button class="btn-status" data-type="poster" style="background: var(--warning); color: black;" data-status="erneut_fragen">❓ Später fragen</button>
+            <button class="btn-status" data-type="poster" style="background: var(--favorite);" data-status="favorit">⭐ Favorit</button>
+        </div>
+        <div class="grid-options" id="sticker-options" style="display: none; grid-template-columns: 1fr;">
+            <button class="btn-status" data-type="sticker" style="background: var(--sticker);" data-status="angebracht">🎯 Sticker manuell setzen</button>
+        </div>
+    </div>
+
+    <nav id="bottom-nav">
+        <button id="mode-poster" class="nav-item active">
+            <div class="icon">📋</div>
+            <span>Plakate</span>
+        </button>
+        <button id="mode-sticker" class="nav-item">
+            <div class="icon">🏷️</div>
+            <span>Sticker</span>
+        </button>
+    </nav>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
     <script>
-        // Audio Context for beep sound
-        function playBeep() {
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
+        const SUPABASE_URL = "https://jlijxaavapxylbiouqzq.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_YEwN3wWWS2NddJOxVoq-qw_H5DpzveH";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+        const map = L.map('map', { zoomControl: true }).setView([47.0707, 15.4395], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OSM',
+            maxZoom: 19
+        }).addTo(map);
 
-                oscillator.frequency.value = 880; // 880 Hz
-                gainNode.gain.value = 0.3;
+        const markers = {};
+        let currentPos = null;
+        let liveLocationMarker = null;
+        let manualSelectedPos = null;
+        let manualMarker = null;
+        let currentMode = 'sticker';
+        let hasInitialZoom = false;
 
-                oscillator.start();
+        // Auto Track Variables
+        let autoTrackActive = false;
+        let autoTrackInterval = null;
 
-                // Beep duration: 150ms
-                setTimeout(() => {
-                    oscillator.stop();
-                    audioContext.close();
-                }, 150);
-            } catch (e) {
-                // Fallback: Use a simple beep via console
-                console.log("🔔 BEEP! - Sticker markiert");
-                // Try alternative beep
-                try {
-                    const audio = new Audio('data:audio/wav;base64,U3RlYWx0aCBhbmQgdGhlIFN0aWNrZXJz');
-                    audio.play().catch(e => console.log("Audio play failed"));
-                } catch (e2) {
-                    // Silent fallback
-                }
-            }
-        }
+        document.getElementById('mode-poster').addEventListener('click', () => switchMode('poster'));
+        document.getElementById('mode-sticker').addEventListener('click', () => switchMode('sticker'));
 
-        // Wake Lock management
-        let wakeLock = null;
-
-        async function requestWakeLock() {
-            if ('wakeLock' in navigator) {
-                try {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                    document.getElementById('wakeLockStatus').innerHTML = '🔒 Display bleibt an (Wake Lock aktiv)';
-                    document.getElementById('wakeLockStatus').style.background = '#c8e6c9';
-                    document.getElementById('wakeLockStatus').style.color = '#2e7d32';
-
-                    // Re-acquire wake lock when page becomes visible again
-                    document.addEventListener('visibilitychange', async () => {
-                        if (wakeLock !== null && document.visibilityState === 'visible') {
-                            await requestWakeLock();
-                        }
-                    });
-
-                    return true;
-                } catch (err) {
-                    console.error('Wake Lock Fehler:', err);
-                    document.getElementById('wakeLockStatus').innerHTML = '⚠️ Wake Lock nicht unterstützt';
-                    return false;
-                }
-            } else {
-                console.warn('Wake Lock API nicht unterstützt');
-                document.getElementById('wakeLockStatus').innerHTML = '⚠️ Wake Lock nicht verfügbar';
-                return false;
-            }
-        }
-
-        async function releaseWakeLock() {
-            if (wakeLock !== null) {
-                try {
-                    await wakeLock.release();
-                    wakeLock = null;
-                    document.getElementById('wakeLockStatus').innerHTML = '🔓 Display-Wake Lock: Deaktiviert';
-                    document.getElementById('wakeLockStatus').style.background = '#e3f2fd';
-                    document.getElementById('wakeLockStatus').style.color = '#1976d2';
-                } catch (err) {
-                    console.error('Wake Lock Release Fehler:', err);
-                }
-            }
-        }
-
-        // Plakat data
-        const plakate = [
-            { id: 1, title: "Konzert: Rock am Platz", location: "Hauptplatz, Wand 1", price: "€120/Monat", image: "https://picsum.photos/id/1/400/300", erlaubt: true, vorschlag: false, tracked: false },
-            { id: 2, title: "Theateraufführung", location: "Bahnhofstraße, Litfaßsäule", price: "€80/Monat", image: "https://picsum.photos/id/2/400/300", erlaubt: true, vorschlag: false, tracked: false },
-            { id: 3, title: "Flohmarkt", location: "Schulweg, Bauzaun", price: "€50/Monat", image: "https://picsum.photos/id/3/400/300", erlaubt: false, vorschlag: false, tracked: false },
-            { id: 4, title: "Stadtfest", location: "Denkmal (denkmalgeschützt)", price: "❌ Nicht erlaubt", image: "https://picsum.photos/id/4/400/300", erlaubt: false, vorschlag: false, tracked: false },
-            { id: 5, title: "Jobmesse", location: "Einkaufszentrum, Eingang", price: "€200/Monat", image: "https://picsum.photos/id/5/400/300", erlaubt: true, vorschlag: false, tracked: false },
-            { id: 6, title: "Sportevent", location: "Sportpark, Zaun", price: "€90/Monat", image: "https://picsum.photos/id/6/400/300", erlaubt: false, vorschlag: false, tracked: false },
-            { id: 7, title: "💡 POTENZIAL: Musikfestival", location: "Bahnhofsvorplatz - Hohe Passantenfrequenz", price: "⭐ Empfohlen", image: "https://picsum.photos/id/7/400/300", erlaubt: false, vorschlag: true, suggestionText: "Ideal für große Events", tracked: false },
-            { id: 8, title: "💡 POTENZIAL: Kunstausstellung", location: "Kulturzentrum, Außenwand - Sichtbar von Hauptstraße", price: "⭐ Empfohlen", image: "https://picsum.photos/id/8/400/300", erlaubt: false, vorschlag: true, suggestionText: "Künstlerisch hochwertige Umgebung", tracked: false },
-            { id: 9, title: "💡 POTENZIAL: Food Festival", location: "Marktplatz - Wochenend-Publikum", price: "⭐ Empfohlen", image: "https://picsum.photos/id/9/400/300", erlaubt: false, vorschlag: true, suggestionText: "Gute Anbindung an Gastronomie", tracked: false },
-            { id: 10, title: "💡 POTENZIAL: Nachhaltigkeitskampagne", location: "Universität, Aula - Studenten frequentiert", price: "⭐ Empfohlen", image: "https://picsum.photos/id/10/400/300", erlaubt: false, vorschlag: true, suggestionText: "Junge, aufgeschlossene Zielgruppe", tracked: false },
-            { id: 11, title: "Buchmesse", location: "Bibliothek, Schaufenster", price: "€70/Monat", image: "https://picsum.photos/id/11/400/300", erlaubt: true, vorschlag: false, tracked: false },
-            { id: 12, title: "💡 POTENZIAL: Technologie-Forum", location: "Coworking Space, Eingangsbereich - IT-Fachpublikum", price: "⭐ Empfohlen", image: "https://picsum.photos/id/12/400/300", erlaubt: false, vorschlag: true, suggestionText: "Perfekt für Tech-Events", tracked: false }
-        ];
-
-        let currentMode = "erlaubt";
-        let autoTrackEnabled = false;
-        let trackedStickers = new Set(); // Store tracked sticker IDs
-
-        function updateTrackCount() {
-            document.getElementById('trackCount').innerText = trackedStickers.size;
-            document.getElementById('totalCount').innerText = getFilteredPlakate().length;
-        }
-
-        function getFilteredPlakate() {
-            if (currentMode === "erlaubt") {
-                return plakate.filter(p => p.erlaubt === true);
-            } else if (currentMode === "verboten") {
-                return plakate.filter(p => p.erlaubt === false && p.vorschlag === false);
-            } else if (currentMode === "vorschlaege") {
-                return plakate.filter(p => p.vorschlag === true);
-            }
-            return [];
-        }
-
-        function trackSticker(stickerId) {
-            const sticker = plakate.find(p => p.id === stickerId);
-            if (!sticker) return false;
-
-            if (!trackedStickers.has(stickerId)) {
-                trackedStickers.add(stickerId);
-                sticker.tracked = true;
-                updateTrackCount();
-
-                // Play beep sound when sticker is marked
-                if (autoTrackEnabled) {
-                    playBeep();
-                }
-
-                return true;
-            }
-            return false;
-        }
-
-        function handleStickerClick(stickerId) {
-            const wasTracked = trackedStickers.has(stickerId);
-
-            if (!wasTracked) {
-                trackSticker(stickerId);
-                renderGrid(); // Re-render to show tracking badge
-
-                // Add highlight animation
-                const card = document.querySelector(`[data-sticker-id="${stickerId}"]`);
-                if (card) {
-                    card.classList.add('tracked');
-                    setTimeout(() => card.classList.remove('tracked'), 500);
-                }
-            }
-        }
-
-        function renderGrid() {
-            const grid = document.getElementById('plakatGrid');
-            const filtered = getFilteredPlakate();
-
-            if (filtered.length === 0) {
-                grid.innerHTML = '<div style="text-align: center; grid-column: 1/-1; padding: 50px;">Keine Plakatierungen in diesem Modus</div>';
-                updateTrackCount();
-                return;
-            }
-
-            grid.innerHTML = filtered.map(plakat => {
-                let markerHtml = '';
-                let trackingHtml = '';
-
-                if (currentMode === 'vorschlaege') {
-                    markerHtml = `<div class="suggestion-marker">💡</div>`;
-                }
-
-                if (plakat.tracked) {
-                    trackingHtml = `<div class="track-marker">🎯</div>`;
-                }
-
-                let priceHtml = '';
-                if (currentMode === 'vorschlaege') {
-                    priceHtml = `<div style="margin-top: 10px;">
-                                    <span class="suggestion-badge">📍 Gelber Marker - Plakatierung möglich</span>
-                                    <div style="font-size: 12px; color: #856404; margin-top: 5px;">${plakat.suggestionText || 'Potenzielle Fläche'}</div>
-                                 </div>`;
-                } else {
-                    priceHtml = `<div class="plakat-price">${plakat.price}</div>`;
-                }
-
-                if (plakat.tracked) {
-                    priceHtml += `<div style="margin-top: 8px;"><span class="track-badge">🎯 Getrackter Sticker</span></div>`;
-                }
-
-                return `
-                    <div class="plakat-card" data-sticker-id="${plakat.id}" onclick="handleStickerClick(${plakat.id})">
-                        <div class="pin-icon">📌</div>
-                        ${markerHtml}
-                        ${trackingHtml}
-                        <img class="plakat-image" src="${plakat.image}" alt="${plakat.title}">
-                        <div class="plakat-info">
-                            <div class="plakat-title">${plakat.title}</div>
-                            <div class="plakat-location">📍 ${plakat.location}</div>
-                            ${priceHtml}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            updateTrackCount();
-        }
-
-        // Update active button styling
-        function updateActiveButton() {
-            document.querySelectorAll('.mode-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-mode') === currentMode) {
-                    btn.classList.add('active');
-                }
-            });
-        }
-
-        // Set mode and re-render
-        function setMode(mode) {
+        function switchMode(mode) {
             currentMode = mode;
-            updateActiveButton();
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            document.getElementById('manual-options').style.display = 'none';
+            if(manualMarker) { map.removeLayer(manualMarker); manualMarker = null; }
 
-            // Update body class for styling
-            document.body.classList.remove('mode-erlaubt', 'mode-verboten', 'mode-vorschlaege');
-            document.body.classList.add(`mode-${mode}`);
+            if (mode === 'poster') {
+                document.getElementById('mode-poster').classList.add('active');
+                document.getElementById('add-gps-btn').style.display = 'flex';
+                document.getElementById('sticker-btn').style.display = 'none';
 
-            renderGrid();
+                // Disable Auto Track when switching away from sticker mode
+                if (autoTrackActive) {
+                    toggleAutoTrack();
+                }
+                document.getElementById('auto-track-btn').style.display = 'none';
+
+            } else {
+                document.getElementById('mode-sticker').classList.add('active');
+                document.getElementById('add-gps-btn').style.display = 'none';
+                document.getElementById('sticker-btn').style.display = 'flex';
+                document.getElementById('auto-track-btn').style.display = 'flex';
+            }
+            fetchLocations();
         }
 
-        // Auto-track toggle handler
-        async function setAutoTrack(enabled) {
-            autoTrackEnabled = enabled;
-            const trackStatus = document.getElementById('trackStatus');
-            const toggle = document.getElementById('autoTrackToggle');
+        let settingsVisible = false;
+        document.getElementById('settings-toggle').addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsVisible = !settingsVisible;
+            const menu = document.getElementById('settings-menu');
+            const btn = document.getElementById('settings-toggle');
 
-            if (enabled) {
-                trackStatus.innerHTML = '🟡 Aktiv - Klicks werden getrackt';
-                trackStatus.classList.add('active');
-                // Request wake lock when autotrack is enabled
-                await requestWakeLock();
+            if (settingsVisible) {
+                menu.style.display = 'block';
+                btn.textContent = '✖️';
+                btn.style.fontSize = '16px';
             } else {
-                trackStatus.innerHTML = '⚪ Inaktiv';
-                trackStatus.classList.remove('active');
-                // Release wake lock when autotrack is disabled
-                await releaseWakeLock();
+                menu.style.display = 'none';
+                btn.textContent = '⚙️';
+                btn.style.fontSize = '20px';
+            }
+        });
+
+        map.on('mousedown', () => {
+            if (settingsVisible) {
+                settingsVisible = false;
+                document.getElementById('settings-menu').style.display = 'none';
+                document.getElementById('settings-toggle').textContent = '⚙️';
+            }
+        });
+
+        async function fetchLocations() {
+            const { data, error } = await supabaseClient.from('poster_locations').select('*').eq('type', currentMode);
+            if (error) return console.error(error);
+
+            Object.keys(markers).forEach(id => map.removeLayer(markers[id]));
+
+            data.forEach(loc => {
+                let customIcon;
+
+                if (loc.type === 'sticker') {
+                    customIcon = L.divIcon({
+                        className: 'sticker-badge',
+                        html: '<span>🍉</span>',
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    });
+                } else {
+                    let className = 'poster-badge';
+                    let htmlContent = `<span>${loc.poster_count}</span>`;
+
+                    if (loc.status === 'nicht_erwuenscht') { className += ' badge-red-x'; htmlContent = '❌'; }
+                    else if (loc.status === 'erneut_fragen') { className += ' badge-yellow-q'; htmlContent = '❓'; }
+                    else if (loc.status === 'favorit') { className += ' badge-star'; htmlContent = '⭐'; }
+
+                    customIcon = L.divIcon({ className: className, html: htmlContent, iconSize: [30, 30], iconAnchor: [15, 15] });
+                }
+
+                const marker = L.marker([loc.latitude, loc.longitude], { icon: customIcon }).addTo(map);
+                const popupContent = document.createElement('div');
+
+                if (loc.type === 'sticker') {
+                    popupContent.innerHTML = `<strong style="font-size:14px;">Sticker geklebt</strong><br>
+                        <div class="popup-controls"><button class="popup-btn btn-del" data-id="${loc.id}">Löschen</button></div>`;
+                    popupContent.querySelector('.btn-del').addEventListener('click', () => deleteLocation(loc.id));
+                } else {
+                    popupContent.innerHTML = `
+                        <strong style="font-size:14px;">${loc.status.toUpperCase().replace('_', ' ')}</strong><br>
+                        Anzahl: ${loc.poster_count}<br>
+                        <div class="popup-controls">
+                            <button class="popup-btn btn-add">+1</button>
+                            <button class="popup-btn btn-dec">-1</button>
+                            <button class="popup-btn btn-del">🗑️</button>
+                        </div>
+                    `;
+                    popupContent.querySelector('.btn-add').addEventListener('click', () => updateCount(loc.id, loc.poster_count + 1));
+                    popupContent.querySelector('.btn-dec').addEventListener('click', () => updateCount(loc.id, loc.poster_count - 1));
+                    popupContent.querySelector('.btn-del').addEventListener('click', () => deleteLocation(loc.id));
+                }
+
+                marker.bindPopup(popupContent);
+                markers[loc.id] = marker;
+            });
+        }
+
+        async function updateCount(id, newCount) {
+            if (newCount <= 0) { deleteLocation(id); }
+            else {
+                await supabaseClient.from('poster_locations').update({ poster_count: newCount }).eq('id', id);
+                fetchLocations();
             }
         }
 
-        // Event listeners
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const mode = btn.getAttribute('data-mode');
-                setMode(mode);
+        async function deleteLocation(id) {
+            if(confirm("Datenpunkt löschen?")) {
+                await supabaseClient.from('poster_locations').delete().eq('id', id);
+                fetchLocations();
+            }
+        }
+
+        function startTracking() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    currentPos = { lat, lon };
+
+                    document.getElementById('add-gps-btn').disabled = false;
+                    document.getElementById('sticker-btn').disabled = false;
+                    document.getElementById('auto-track-btn').disabled = false;
+
+                    const liveIcon = L.divIcon({ className: 'live-dot', iconSize: [14, 14], iconAnchor: [7, 7] });
+                    if (liveLocationMarker) { liveLocationMarker.setLatLng([lat, lon]); }
+                    else { liveLocationMarker = L.marker([lat, lon], { icon: liveIcon }).addTo(map); }
+
+                    if (!hasInitialZoom) {
+                        map.setView([lat, lon], 18);
+                        hasInitialZoom = true;
+                    }
+
+                }, (err) => {
+                    console.error("GPS Fehler:", err);
+                }, {
+                    enableHighAccuracy: true,
+                    maximumAge: 0
+                });
+            } else {
+                console.error("Geolocation wird nicht unterstützt.");
+            }
+        }
+
+        startTracking();
+
+        map.on('click', (e) => {
+            manualSelectedPos = e.latlng;
+            if (manualMarker) { manualMarker.setLatLng(manualSelectedPos); }
+            else { manualMarker = L.marker(manualSelectedPos).addTo(map); }
+
+            document.getElementById('manual-options').style.display = 'block';
+
+            if (currentMode === 'poster') {
+                document.getElementById('manual-title').innerText = 'Haus-Aktion wählen:';
+                document.getElementById('poster-options').style.display = 'grid';
+                document.getElementById('sticker-options').style.display = 'none';
+            } else {
+                document.getElementById('manual-title').innerText = 'Sticker-Aktion:';
+                document.getElementById('poster-options').style.display = 'none';
+                document.getElementById('sticker-options').style.display = 'grid';
+            }
+        });
+
+        async function saveData(lat, lon, type, status, count = 1) {
+            const { error } = await supabaseClient.from('poster_locations').insert([
+                { latitude: lat, longitude: lon, type: type, status: status, poster_count: count }
+            ]);
+
+            if (error) {
+                console.error("Fehler beim Speichern:", error);
+            } else {
+                if (manualMarker) { map.removeLayer(manualMarker); manualMarker = null; }
+                document.getElementById('manual-options').style.display = 'none';
+                fetchLocations();
+            }
+        }
+
+        document.getElementById('add-gps-btn').addEventListener('click', () => {
+            if (currentPos) saveData(currentPos.lat, currentPos.lon, 'poster', 'angebracht', 1);
+        });
+
+        document.getElementById('sticker-btn').addEventListener('click', () => {
+            if (currentPos) saveData(currentPos.lat, currentPos.lon, 'sticker', 'angebracht', 1);
+        });
+
+        // Auto Track Logic
+        function toggleAutoTrack() {
+            autoTrackActive = !autoTrackActive;
+            const btn = document.getElementById('auto-track-btn');
+
+            if (autoTrackActive) {
+                btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (ON)';
+                btn.classList.add('pulse-active');
+
+                // Set the interval for 35 seconds
+                autoTrackInterval = setInterval(() => {
+                    if (currentPos && currentMode === 'sticker') {
+                        saveData(currentPos.lat, currentPos.lon, 'sticker', 'angebracht', 1);
+                    }
+                }, 35000);
+            } else {
+                btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (Off)';
+                btn.classList.remove('pulse-active');
+                clearInterval(autoTrackInterval);
+                autoTrackInterval = null;
+            }
+        }
+
+        document.getElementById('auto-track-btn').addEventListener('click', toggleAutoTrack);
+
+        document.querySelectorAll('.btn-status').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const selectedStatus = e.target.getAttribute('data-status');
+                const type = e.target.getAttribute('data-type');
+                if (manualSelectedPos) {
+                    saveData(manualSelectedPos.lat, manualSelectedPos.lng, type, selectedStatus, 1);
+                }
             });
         });
 
-        document.getElementById('autoTrackToggle').addEventListener('change', (e) => {
-            setAutoTrack(e.target.checked);
+        document.getElementById('export-csv-btn').addEventListener('click', async () => {
+            const { data, error } = await supabaseClient.from('poster_locations').select('latitude,longitude,poster_count,type,status');
+            if (error || data.length === 0) return alert("Keine Daten!");
+            let csvContent = "data:text/csv;charset=utf-8,latitude,longitude,poster_count,type,status\n";
+            data.forEach(row => { csvContent += `${row.latitude},${row.longitude},${row.poster_count},${row.type},${row.status}\n`; });
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", `graz_tracker_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
         });
 
-        // Make handleStickerClick globally available
-        window.handleStickerClick = handleStickerClick;
+        document.getElementById('import-csv-btn').addEventListener('click', () => document.getElementById('csv-file-input').click());
+        document.getElementById('csv-file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const lines = event.target.result.split('\n'); const items = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim(); if (!line) continue;
+                    const cols = line.split(',');
+                    if (cols.length >= 5) { items.push({ latitude: parseFloat(cols[0]), longitude: parseFloat(cols[1]), poster_count: parseInt(cols[2]), type: cols[3], status: cols[4] }); }
+                }
+                if (items.length > 0 && confirm(`${items.length} Punkte importieren?`)) {
+                    await supabaseClient.from('poster_locations').insert(items); fetchLocations();
+                }
+            };
+            reader.readAsText(file);
+        });
 
-        // Initialize
-        setMode('erlaubt');
+        switchMode('sticker');
 
-        // Request audio context permission on first user interaction
-        document.body.addEventListener('click', () => {
-            // Initialize audio context on first click (required by browsers)
-            if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                audioCtx.close();
+        setInterval(() => {
+            if (document.getElementById('manual-options').style.display !== 'block') {
+                fetchLocations();
             }
-        }, { once: true });
-
-        // Update total count on initial render
-        updateTrackCount();
-
-        // Check if wake lock is supported
-        if (!('wakeLock' in navigator)) {
-            document.getElementById('wakeLockStatus').innerHTML = '⚠️ Wake Lock wird von diesem Browser nicht unterstützt';
-        }
+        }, 30000);
     </script>
 </body>
 </html>
