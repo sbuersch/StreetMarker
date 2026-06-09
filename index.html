@@ -398,6 +398,7 @@
         let audioElements = [];
 
         // Saubere, kurze WAV-Audiodatei direkt als Base64
+        // Ein echter, hörbarer 440Hz Piepton (WAV-Format, 0.1 Sekunden)
         const BEEP_BASE64 = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAQA";
 
         function initAudioPool() {
@@ -416,14 +417,40 @@
             audioEnabled = true;
         }
 
+        // --- Audio System Setup (Echter Sound für Laptop & Handy) ---
+        let audioCtx = null;
+
         function playBeep() {
-            if (!audioEnabled) initAudioPool();
-            const availableAudio = audioElements.find(a => a.paused) || audioElements[0];
-            if (availableAudio) {
-                availableAudio.currentTime = 0;
-                availableAudio.play().catch(err => {
-                    console.warn("Wiedergabe im Intervall blockiert:", err);
-                });
+            try {
+                // Initialisiert den AudioContext erst bei echter Interaktion
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                // Falls der Kontext im Hintergrund schlafen gelegt wurde, wecken
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                const now = audioCtx.currentTime;
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                // Ton-Einstellungen
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 880; // Angenehmer, hoher Piepton
+                gainNode.gain.setValueAtTime(0.3, now); // Lautstärke (30%)
+
+                // Lässt den Ton nach 0.1 Sekunden schnell ausfaden (verhindert Knacken)
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 0.12);
+
+                oscillator.start(now);
+                oscillator.stop(now + 0.12);
+            } catch (e) {
+                console.warn("Audio konnte nicht abgespielt werden:", e);
             }
         }
 
