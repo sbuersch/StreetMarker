@@ -14,6 +14,8 @@
             --favorite: #fd7e14;
             --dark: #212529;
             --sticker: #007a3d;
+            --opportunity: #9b59b6;     /* Lila für Plakatiermöglichkeiten */
+            --opportunity-light: #c39bd3;
         }
 
         body {
@@ -104,6 +106,7 @@
         .btn-fab:active { transform: scale(0.95); }
         #add-gps-btn { background: var(--primary); }
         #sticker-btn { background: var(--sticker); display: none; }
+        #opportunity-btn { background: var(--opportunity); display: none; }
         .btn-fab:disabled { background: #ccc !important; box-shadow: none; }
 
         @keyframes pulse-animation {
@@ -142,6 +145,10 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
+        }
+
+        .grid-options-single {
+            grid-template-columns: 1fr;
         }
 
         .btn-status {
@@ -208,7 +215,7 @@
             top: 85px;
         }
 
-        .poster-badge, .sticker-badge, .live-dot {
+        .poster-badge, .sticker-badge, .opportunity-badge, .live-dot {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -231,9 +238,19 @@
             font-size: 16px;
         }
 
+        .opportunity-badge {
+            background: var(--opportunity);
+            border: 2px solid white;
+            border-radius: 12px 4px 12px 4px;
+            font-size: 14px;
+            width: 32px;
+            height: 32px;
+        }
+
         .badge-red-x { background: var(--danger); font-size: 15px; }
         .badge-yellow-q { background: var(--warning); color: black; font-size: 15px; }
         .badge-star { background: var(--favorite); font-size: 15px; }
+        .badge-opportunity-default { background: var(--opportunity); }
 
         .live-dot {
             background: #00bcd4;
@@ -261,6 +278,22 @@
         .btn-add { background: var(--success); }
         .btn-dec { background: var(--warning); color: black; }
         .btn-del { background: var(--danger); }
+
+        .wake-lock-badge {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            background: rgba(0,0,0,0.7);
+            color: #0f0;
+            font-size: 10px;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-family: monospace;
+            z-index: 1000;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -276,6 +309,9 @@
                 <button id="import-csv-btn" class="btn-mini" style="background: #17a2b8; flex: 1;">📤 Import CSV</button>
                 <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
             </div>
+            <div style="margin-top: 8px; text-align: center;">
+                <button id="wake-lock-toggle" class="btn-mini" style="background: #6c5ce7; width: 100%;">🔋 Wake Lock aktivieren</button>
+            </div>
         </div>
     </div>
 
@@ -284,24 +320,30 @@
     <div class="fab-container">
         <button id="add-gps-btn" class="btn-fab" disabled>➕ Plakat hinzufügen</button>
         <button id="sticker-btn" class="btn-fab" disabled>🎯 Sticker hinzufügen</button>
+        <button id="opportunity-btn" class="btn-fab" disabled>📍 Plakatiermöglichkeit</button>
         <button id="auto-track-btn" class="btn-fab btn-fab-small" style="display: none;" disabled>⏱️ Auto Track - Sticker alle 35sek hinzufügen (Off)</button>
     </div>
 
     <div id="manual-options">
-        <strong id="manual-title">Haus-Aktion wählen:</strong>
-        <div class="grid-options" id="poster-options">
+        <strong id="manual-title">Aktion wählen:</strong>
+        <div id="poster-options" class="grid-options">
             <button class="btn-status" data-type="poster" style="background: var(--primary);" data-status="angebracht">💙 Angebracht</button>
             <button class="btn-status" data-type="poster" style="background: var(--danger);" data-status="nicht_erwuenscht">❌ Abgelehnt</button>
             <button class="btn-status" data-type="poster" style="background: var(--warning); color: black;" data-status="erneut_fragen">❓ Später fragen</button>
             <button class="btn-status" data-type="poster" style="background: var(--favorite);" data-status="favorit">⭐ Favorit</button>
         </div>
-        <div class="grid-options" id="sticker-options" style="display: none; grid-template-columns: 1fr;">
-            <button class="btn-status" data-type="sticker" style="background: var(--sticker);" data-status="angebracht">🎯 Sticker manuell setzen</button>
+        <div id="sticker-options" class="grid-options grid-options-single" style="display: none;">
+            <button class="btn-status" data-type="sticker" style="background: var(--sticker);" data-status="angebracht">🎯 Sticker setzen</button>
+        </div>
+        <div id="opportunity-options" class="grid-options grid-options-single" style="display: none;">
+            <button class="btn-status" data-type="opportunity" style="background: var(--opportunity);" data-status="potentiell">📍 Als Möglichkeit markieren</button>
+            <button class="btn-status" data-type="opportunity" style="background: var(--success);" data-status="geeignet">✅ Geeignet bestätigt</button>
+            <button class="btn-status" data-type="opportunity" style="background: var(--danger);" data-status="unbrauchbar">🚫 Unbrauchbar</button>
         </div>
     </div>
 
     <nav id="bottom-nav">
-        <button id="mode-poster" class="nav-item active">
+        <button id="mode-poster" class="nav-item">
             <div class="icon">📋</div>
             <span>Plakate</span>
         </button>
@@ -309,7 +351,13 @@
             <div class="icon">🏷️</div>
             <span>Sticker</span>
         </button>
+        <button id="mode-opportunity" class="nav-item active">
+            <div class="icon">📍</div>
+            <span>Möglichkeiten</span>
+        </button>
     </nav>
+
+    <div class="wake-lock-badge" id="wakeLockStatus">💤 Wake Lock: inaktiv</div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -330,15 +378,123 @@
         let liveLocationMarker = null;
         let manualSelectedPos = null;
         let manualMarker = null;
-        let currentMode = 'sticker';
+        let currentMode = 'opportunity';
         let hasInitialZoom = false;
 
+        // Auto Track Variables
         let autoTrackActive = false;
         let autoTrackInterval = null;
-        let wakeLock = null;
 
+        // --- Wake Lock API Integration ---
+        let wakeLock = null;
+        let wakeLockActive = false;
+        const wakeLockToggleBtn = document.getElementById('wake-lock-toggle');
+        const wakeLockStatusSpan = document.getElementById('wakeLockStatus');
+
+        let audioCtx = null;
+        function playBeep() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().then(() => createBeepSound()).catch(e => console.warn("AudioContext resume failed", e));
+                } else {
+                    createBeepSound();
+                }
+            } catch (e) {
+                console.warn("Web Audio API not supported");
+            }
+        }
+
+        function createBeepSound() {
+            try {
+                const now = audioCtx.currentTime;
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = 880;
+                gainNode.gain.value = 0.25;
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 0.25);
+                oscillator.stop(now + 0.25);
+            } catch(e) { console.warn("beep failed", e); }
+        }
+
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLockActive = true;
+                    wakeLockStatusSpan.innerHTML = '🔋 Wake Lock: AKTIV (Display bleibt an)';
+                    wakeLockStatusSpan.style.color = '#aaffaa';
+                    wakeLockToggleBtn.textContent = '🔋 Wake Lock deaktivieren';
+                    wakeLockToggleBtn.style.background = '#e74c3c';
+
+                    const handleVisibilityChange = () => {
+                        if (wakeLock !== null && document.visibilityState === 'visible' && wakeLockActive) {
+                            navigator.wakeLock.request('screen').then(lock => {
+                                wakeLock = lock;
+                                wakeLockActive = true;
+                            }).catch(err => console.warn("Re-lock failed", err));
+                        }
+                    };
+                    document.addEventListener('visibilitychange', handleVisibilityChange);
+                    window._wakeLockVisibilityHandler = handleVisibilityChange;
+                } catch (err) {
+                    console.error('Wake Lock Fehler:', err);
+                    wakeLockStatusSpan.innerHTML = '⚠️ Wake Lock nicht verfügbar';
+                    wakeLockActive = false;
+                }
+            } else {
+                wakeLockStatusSpan.innerHTML = '📱 Wake Lock wird nicht unterstützt';
+                wakeLockActive = false;
+            }
+        }
+
+        async function releaseWakeLock() {
+            if (wakeLock !== null && wakeLockActive) {
+                try {
+                    await wakeLock.release();
+                    wakeLock = null;
+                    wakeLockActive = false;
+                    wakeLockStatusSpan.innerHTML = '💤 Wake Lock: inaktiv';
+                    wakeLockStatusSpan.style.color = '#0f0';
+                    wakeLockToggleBtn.textContent = '🔋 Wake Lock aktivieren';
+                    wakeLockToggleBtn.style.background = '#6c5ce7';
+                    if (window._wakeLockVisibilityHandler) {
+                        document.removeEventListener('visibilitychange', window._wakeLockVisibilityHandler);
+                        delete window._wakeLockVisibilityHandler;
+                    }
+                } catch (err) {
+                    console.error("Release error", err);
+                }
+            } else {
+                wakeLockActive = false;
+                wakeLockStatusSpan.innerHTML = '💤 Wake Lock: inaktiv';
+                wakeLockToggleBtn.textContent = '🔋 Wake Lock aktivieren';
+                wakeLockToggleBtn.style.background = '#6c5ce7';
+            }
+        }
+
+        function toggleWakeLock() {
+            if (wakeLockActive) {
+                releaseWakeLock();
+            } else {
+                requestWakeLock();
+            }
+        }
+
+        wakeLockToggleBtn.addEventListener('click', toggleWakeLock);
+        window.addEventListener('beforeunload', () => {
+            if (wakeLock) wakeLock.release().catch(e=>console.log);
+        });
+
+        // Navigation
         document.getElementById('mode-poster').addEventListener('click', () => switchMode('poster'));
         document.getElementById('mode-sticker').addEventListener('click', () => switchMode('sticker'));
+        document.getElementById('mode-opportunity').addEventListener('click', () => switchMode('opportunity'));
 
         function switchMode(mode) {
             currentMode = mode;
@@ -346,21 +502,24 @@
             document.getElementById('manual-options').style.display = 'none';
             if(manualMarker) { map.removeLayer(manualMarker); manualMarker = null; }
 
+            // Buttons visibility
+            document.getElementById('add-gps-btn').style.display = 'none';
+            document.getElementById('sticker-btn').style.display = 'none';
+            document.getElementById('opportunity-btn').style.display = 'none';
+            document.getElementById('auto-track-btn').style.display = 'none';
+
             if (mode === 'poster') {
                 document.getElementById('mode-poster').classList.add('active');
                 document.getElementById('add-gps-btn').style.display = 'flex';
-                document.getElementById('sticker-btn').style.display = 'none';
-
-                if (autoTrackActive) {
-                    toggleAutoTrack();
-                }
-                document.getElementById('auto-track-btn').style.display = 'none';
-
-            } else {
+                if (autoTrackActive) toggleAutoTrack();
+            } else if (mode === 'sticker') {
                 document.getElementById('mode-sticker').classList.add('active');
-                document.getElementById('add-gps-btn').style.display = 'none';
                 document.getElementById('sticker-btn').style.display = 'flex';
                 document.getElementById('auto-track-btn').style.display = 'flex';
+            } else if (mode === 'opportunity') {
+                document.getElementById('mode-opportunity').classList.add('active');
+                document.getElementById('opportunity-btn').style.display = 'flex';
+                if (autoTrackActive) toggleAutoTrack();
             }
             fetchLocations();
         }
@@ -399,7 +558,6 @@
 
             data.forEach(loc => {
                 let customIcon;
-
                 if (loc.type === 'sticker') {
                     customIcon = L.divIcon({
                         className: 'sticker-badge',
@@ -407,14 +565,22 @@
                         iconSize: [30, 30],
                         iconAnchor: [15, 15]
                     });
+                } else if (loc.type === 'opportunity') {
+                    let statusSymbol = '📍';
+                    if (loc.status === 'geeignet') statusSymbol = '✅';
+                    else if (loc.status === 'unbrauchbar') statusSymbol = '🚫';
+                    customIcon = L.divIcon({
+                        className: 'opportunity-badge',
+                        html: `<span style="font-size:16px;">${statusSymbol}</span>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    });
                 } else {
                     let className = 'poster-badge';
                     let htmlContent = `<span>${loc.poster_count}</span>`;
-
                     if (loc.status === 'nicht_erwuenscht') { className += ' badge-red-x'; htmlContent = '❌'; }
                     else if (loc.status === 'erneut_fragen') { className += ' badge-yellow-q'; htmlContent = '❓'; }
                     else if (loc.status === 'favorit') { className += ' badge-star'; htmlContent = '⭐'; }
-
                     customIcon = L.divIcon({ className: className, html: htmlContent, iconSize: [30, 30], iconAnchor: [15, 15] });
                 }
 
@@ -422,13 +588,15 @@
                 const popupContent = document.createElement('div');
 
                 if (loc.type === 'sticker') {
-                    popupContent.innerHTML = `<strong style="font-size:14px;">Sticker geklebt</strong><br>
-                        <div class="popup-controls"><button class="popup-btn btn-del" data-id="${loc.id}">Löschen</button></div>`;
+                    popupContent.innerHTML = `<strong>📍 Sticker</strong><br>Status: ${loc.status}<br><div class="popup-controls"><button class="popup-btn btn-del" data-id="${loc.id}">Löschen</button></div>`;
+                    popupContent.querySelector('.btn-del').addEventListener('click', () => deleteLocation(loc.id));
+                } else if (loc.type === 'opportunity') {
+                    let statusText = loc.status === 'potentiell' ? '🔮 Potentielle Fläche' : (loc.status === 'geeignet' ? '✅ Geeignet' : '🚫 Unbrauchbar');
+                    popupContent.innerHTML = `<strong>📌 Plakatiermöglichkeit</strong><br>${statusText}<br><div class="popup-controls"><button class="popup-btn btn-del" data-id="${loc.id}">Löschen</button></div>`;
                     popupContent.querySelector('.btn-del').addEventListener('click', () => deleteLocation(loc.id));
                 } else {
                     popupContent.innerHTML = `
-                        <strong style="font-size:14px;">${loc.status.toUpperCase().replace('_', ' ')}</strong><br>
-                        Anzahl: ${loc.poster_count}<br>
+                        <strong>📋 Plakat</strong><br>Status: ${loc.status.toUpperCase().replace('_', ' ')}<br>Anzahl: ${loc.poster_count}<br>
                         <div class="popup-controls">
                             <button class="popup-btn btn-add">+1</button>
                             <button class="popup-btn btn-dec">-1</button>
@@ -466,9 +634,9 @@
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
                     currentPos = { lat, lon };
-
                     document.getElementById('add-gps-btn').disabled = false;
                     document.getElementById('sticker-btn').disabled = false;
+                    document.getElementById('opportunity-btn').disabled = false;
                     document.getElementById('auto-track-btn').disabled = false;
 
                     const liveIcon = L.divIcon({ className: 'live-dot', iconSize: [14, 14], iconAnchor: [7, 7] });
@@ -479,46 +647,39 @@
                         map.setView([lat, lon], 18);
                         hasInitialZoom = true;
                     }
-
-                }, (err) => {
-                    console.error("GPS Fehler:", err);
-                }, {
-                    enableHighAccuracy: true,
-                    maximumAge: 0
-                });
-            } else {
-                console.error("Geolocation wird nicht unterstützt.");
-            }
+                }, (err) => { console.error("GPS Fehler:", err); }, { enableHighAccuracy: true, maximumAge: 0 });
+            } else { console.error("Geolocation wird nicht unterstützt."); }
         }
-
         startTracking();
 
         map.on('click', (e) => {
             manualSelectedPos = e.latlng;
             if (manualMarker) { manualMarker.setLatLng(manualSelectedPos); }
             else { manualMarker = L.marker(manualSelectedPos).addTo(map); }
-
             document.getElementById('manual-options').style.display = 'block';
 
+            document.getElementById('poster-options').style.display = 'none';
+            document.getElementById('sticker-options').style.display = 'none';
+            document.getElementById('opportunity-options').style.display = 'none';
+
             if (currentMode === 'poster') {
-                document.getElementById('manual-title').innerText = 'Haus-Aktion wählen:';
+                document.getElementById('manual-title').innerText = 'Plakat-Aktion:';
                 document.getElementById('poster-options').style.display = 'grid';
-                document.getElementById('sticker-options').style.display = 'none';
-            } else {
+            } else if (currentMode === 'sticker') {
                 document.getElementById('manual-title').innerText = 'Sticker-Aktion:';
-                document.getElementById('poster-options').style.display = 'none';
                 document.getElementById('sticker-options').style.display = 'grid';
+            } else if (currentMode === 'opportunity') {
+                document.getElementById('manual-title').innerText = 'Plakatiermöglichkeit bewerten:';
+                document.getElementById('opportunity-options').style.display = 'grid';
             }
         });
 
         async function saveData(lat, lon, type, status, count = 1) {
             const { error } = await supabaseClient.from('poster_locations').insert([
-                { latitude: lat, longitude: lon, type: type, status: status, poster_count: count }
+                { latitude: lat, longitude: lon, type: type, status: status, poster_count: (type === 'poster' ? count : 1) }
             ]);
-
-            if (error) {
-                console.error("Fehler beim Speichern:", error);
-            } else {
+            if (error) { console.error("Fehler beim Speichern:", error); }
+            else {
                 if (manualMarker) { map.removeLayer(manualMarker); manualMarker = null; }
                 document.getElementById('manual-options').style.display = 'none';
                 fetchLocations();
@@ -528,61 +689,52 @@
         document.getElementById('add-gps-btn').addEventListener('click', () => {
             if (currentPos) saveData(currentPos.lat, currentPos.lon, 'poster', 'angebracht', 1);
         });
-
         document.getElementById('sticker-btn').addEventListener('click', () => {
             if (currentPos) saveData(currentPos.lat, currentPos.lon, 'sticker', 'angebracht', 1);
         });
+        document.getElementById('opportunity-btn').addEventListener('click', () => {
+            if (currentPos) saveData(currentPos.lat, currentPos.lon, 'opportunity', 'potentiell', 1);
+        });
 
-        async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        function releaseWakeLock() {
-            if (wakeLock !== null) {
-                wakeLock.release();
-                wakeLock = null;
+        function autoTrackCallback() {
+            if (currentPos && currentMode === 'sticker' && autoTrackActive) {
+                playBeep();
+                if (navigator.vibrate) navigator.vibrate(200);
+                saveData(currentPos.lat, currentPos.lon, 'sticker', 'angebracht', 1);
+                const tempMsg = document.createElement('div');
+                tempMsg.innerText = '🔊 Sticker automatisch hinzugefügt + Piep!';
+                tempMsg.style.position = 'absolute';
+                tempMsg.style.bottom = '100px';
+                tempMsg.style.left = '20px';
+                tempMsg.style.right = '20px';
+                tempMsg.style.backgroundColor = 'rgba(0,0,0,0.8)';
+                tempMsg.style.color = '#ffc107';
+                tempMsg.style.padding = '8px 12px';
+                tempMsg.style.borderRadius = '24px';
+                tempMsg.style.fontSize = '12px';
+                tempMsg.style.textAlign = 'center';
+                tempMsg.style.zIndex = '2000';
+                tempMsg.style.fontWeight = 'bold';
+                document.body.appendChild(tempMsg);
+                setTimeout(() => { if(tempMsg.parentNode) tempMsg.remove(); }, 1500);
             }
         }
 
         function toggleAutoTrack() {
             autoTrackActive = !autoTrackActive;
             const btn = document.getElementById('auto-track-btn');
-
             if (autoTrackActive) {
-                btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (ON)';
+                btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (ON) 🎵';
                 btn.classList.add('pulse-active');
-
-                requestWakeLock();
-
-                autoTrackInterval = setInterval(() => {
-                    if (currentPos && currentMode === 'sticker') {
-                        saveData(currentPos.lat, currentPos.lon, 'sticker', 'angebracht', 1);
-                    }
-                }, 35000);
+                if (autoTrackInterval) clearInterval(autoTrackInterval);
+                autoTrackInterval = setInterval(() => autoTrackCallback(), 35000);
             } else {
                 btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (Off)';
                 btn.classList.remove('pulse-active');
-
-                releaseWakeLock();
-
-                clearInterval(autoTrackInterval);
-                autoTrackInterval = null;
+                if (autoTrackInterval) { clearInterval(autoTrackInterval); autoTrackInterval = null; }
             }
         }
-
         document.getElementById('auto-track-btn').addEventListener('click', toggleAutoTrack);
-
-        document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible') {
-                await requestWakeLock();
-            }
-        });
 
         document.querySelectorAll('.btn-status').forEach(button => {
             button.addEventListener('click', (e) => {
@@ -596,7 +748,7 @@
 
         document.getElementById('export-csv-btn').addEventListener('click', async () => {
             const { data, error } = await supabaseClient.from('poster_locations').select('latitude,longitude,poster_count,type,status');
-            if (error || data.length === 0) return alert("Keine Daten!");
+            if (error || !data.length) return alert("Keine Daten!");
             let csvContent = "data:text/csv;charset=utf-8,latitude,longitude,poster_count,type,status\n";
             data.forEach(row => { csvContent += `${row.latitude},${row.longitude},${row.poster_count},${row.type},${row.status}\n`; });
             const link = document.createElement("a");
@@ -623,13 +775,18 @@
             reader.readAsText(file);
         });
 
-        switchMode('sticker');
-
+        switchMode('opportunity');
         setInterval(() => {
-            if (document.getElementById('manual-options').style.display !== 'block') {
-                fetchLocations();
-            }
+            if (document.getElementById('manual-options').style.display !== 'block') fetchLocations();
         }, 30000);
+
+        function enableAudioOnUserInteraction() {
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(e=>console.warn);
+            document.removeEventListener('touchstart', enableAudioOnUserInteraction);
+            document.removeEventListener('click', enableAudioOnUserInteraction);
+        }
+        document.addEventListener('touchstart', enableAudioOnUserInteraction);
+        document.addEventListener('click', enableAudioOnUserInteraction);
     </script>
 </body>
 </html>
