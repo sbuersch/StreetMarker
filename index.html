@@ -722,26 +722,52 @@
             }
         }
 
+        let audioEnabled = false;
+        let audioElements = [];
+
+        // Eine extrem kurze, saubere Beep-Ton MP3 als Base64-String direkt im Code eingebettet
+        const BEEP_BASE64 = "data:audio/mp3;base64,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AwDAZ///////5gMDAwP5//////+ZgMDAwAbAIBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQURM0gAAB/m7/zIAAAA/5//8zAAAD/5v/MgAAAAB/P//zMBgYAYAUDAUAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEBAP/7smQGgByIM1zAzgSwR0E63AzASwRsk63AzASwAAAjwAAACAAAAKwEAABgMAwDAZ///////5gMDAwP5//////+ZgMDAwAbAIBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQ==";
+
+        function initAudioPool() {
+            if (audioEnabled) return;
+
+            // Erzeuge einen Pool aus 3 Audio-Objekten (verhindert Abschneiden bei schnellen Triggern)
+            for (let i = 0; i < 3; i++) {
+                const audio = new Audio();
+                audio.src = BEEP_BASE64;
+                audio.preload = 'auto';
+                // Wichtig für iOS: Spiele den Ton einmal sofort lautlos ab, um ihn zu entsperren
+                audio.volume = 0;
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.volume = 1.0; // Danach auf volle Lautstärke stellen
+                }).catch(e => console.log("Unlock temporary sound failed", e));
+                audioElements.push(audio);
+            }
+            audioEnabled = true;
+        }
+
+        function playBeep() {
+            if (!audioEnabled) initAudioPool();
+
+            // Suche ein Audio-Element, das gerade nicht spielt
+            const availableAudio = audioElements.find(a => a.paused) || audioElements[0];
+            if (availableAudio) {
+                availableAudio.currentTime = 0;
+                availableAudio.play().catch(err => {
+                    console.warn("Audio-Wiedergabe vom Browser blockiert:", err);
+                });
+            }
+        }
+
         function toggleAutoTrack() {
             autoTrackActive = !autoTrackActive;
             const btn = document.getElementById('auto-track-btn');
 
             if (autoTrackActive) {
-                // --- HANDY FIX START ---
-                // AudioContext initialisieren/aktivieren genau in diesem Klick-Event
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-                // Einmalig einen lautlosen Puffer abspielen, um Audio-Berechtigung zu sichern
-                const buffer = audioCtx.createBuffer(1, 1, 22050);
-                const source = audioCtx.createBufferSource();
-                source.buffer = buffer;
-                source.connect(audioCtx.destination);
-                source.start(0);
-                // --- HANDY FIX END ---
+                // Zwingend erforderlich: Beim echten Klick des Users das Audio-System initialisieren
+                initAudioPool();
+                playBeep(); // Spielt sofort einen Bestätigungston
 
                 btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (ON) 🎵';
                 btn.classList.add('pulse-active');
@@ -823,7 +849,7 @@
         }, 30000);
 
         function enableAudioOnUserInteraction() {
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(e=>console.warn);
+            initAudioPool();
             document.removeEventListener('touchstart', enableAudioOnUserInteraction);
             document.removeEventListener('click', enableAudioOnUserInteraction);
         }
