@@ -394,17 +394,32 @@
 
         let audioCtx = null;
         function playBeep() {
+            // Falls noch nicht initialisiert (Sicherheitsnetz)
+            if (!audioCtx) initAudio();
+
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
             try {
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume().then(() => createBeepSound()).catch(e => console.warn("AudioContext resume failed", e));
-                } else {
-                    createBeepSound();
-                }
-            } catch (e) {
-                console.warn("Web Audio API not supported");
+                const now = audioCtx.currentTime;
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                // Frequenz und Lautstärke des Pieptons
+                oscillator.frequency.value = 880;
+                gainNode.gain.setValueAtTime(0.3, now);
+
+                // Ton schnell ausfaden lassen (0.15 Sekunden)
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 0.15);
+
+                oscillator.start(now);
+                oscillator.stop(now + 0.15);
+            } catch(e) {
+                console.warn("Piepton fehlgeschlagen:", e);
             }
         }
 
@@ -722,6 +737,17 @@
             }
         }
 
+        let audioCtx = null;
+
+        function initAudio() {
+            if (audioCtx) return;
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.warn("Web Audio API wird nicht unterstützt");
+            }
+        }
+
         let audioEnabled = false;
         let audioElements = [];
 
@@ -768,9 +794,9 @@
             const btn = document.getElementById('auto-track-btn');
 
             if (autoTrackActive) {
-                // Zwingend erforderlich: Beim echten Klick des Users das Audio-System initialisieren
-                initAudioPool();
-                playBeep(); // Spielt sofort einen Bestätigungston
+                // HIER aktivieren wir das Audio-System direkt durch den Klick!
+                initAudio();
+                playBeep(); // Sofortiger Test-Piep als Bestätigung
 
                 btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (ON) 🎵';
                 btn.classList.add('pulse-active');
@@ -851,13 +877,13 @@
             if (document.getElementById('manual-options').style.display !== 'block') fetchLocations();
         }, 30000);
 
-        function enableAudioOnUserInteraction() {
-            initAudioPool();
-            document.removeEventListener('touchstart', enableAudioOnUserInteraction);
-            document.removeEventListener('click', enableAudioOnUserInteraction);
+        function unlockAudioOnMapClick() {
+            initAudio();
+            document.removeEventListener('touchstart', unlockAudioOnMapClick);
+            document.removeEventListener('click', unlockAudioOnMapClick);
         }
-        document.addEventListener('touchstart', enableAudioOnUserInteraction);
-        document.addEventListener('click', enableAudioOnUserInteraction);
+        document.addEventListener('touchstart', unlockAudioOnMapClick);
+        document.addEventListener('click', unlockAudioOnMapClick);
     </script>
 </body>
 </html>
