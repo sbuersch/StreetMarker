@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -384,7 +385,7 @@
         // Auto Track Variables
         let autoTrackActive = false;
         let autoTrackInterval = null;
-        let isFirstRun = true;  // Für "sofort starten, dann pausieren"
+        let isFirstRun = true;
 
         // --- Wake Lock API Integration ---
         let wakeLock = null;
@@ -392,50 +393,38 @@
         const wakeLockToggleBtn = document.getElementById('wake-lock-toggle');
         const wakeLockStatusSpan = document.getElementById('wakeLockStatus');
 
-        let audioCtx = null;
-        function playBeep() {
-            // Falls noch nicht initialisiert (Sicherheitsnetz)
-            if (!audioCtx) initAudio();
+        // --- Audio System Setup (Handy Fix) ---
+        let audioEnabled = false;
+        let audioElements = [];
 
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
+        // Saubere, kurze WAV-Audiodatei direkt als Base64
+        const BEEP_BASE64 = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAQA";
+
+        function initAudioPool() {
+            if (audioEnabled) return;
+            for (let i = 0; i < 3; i++) {
+                const audio = new Audio();
+                audio.src = BEEP_BASE64;
+                audio.preload = 'auto';
+                audio.volume = 0;
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.volume = 1.0;
+                }).catch(e => console.log("Audio Unlock passiv:", e));
+                audioElements.push(audio);
             }
-
-            try {
-                const now = audioCtx.currentTime;
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-
-                // Frequenz und Lautstärke des Pieptons
-                oscillator.frequency.value = 880;
-                gainNode.gain.setValueAtTime(0.3, now);
-
-                // Ton schnell ausfaden lassen (0.15 Sekunden)
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 0.15);
-
-                oscillator.start(now);
-                oscillator.stop(now + 0.15);
-            } catch(e) {
-                console.warn("Piepton fehlgeschlagen:", e);
-            }
+            audioEnabled = true;
         }
 
-        function createBeepSound() {
-            try {
-                const now = audioCtx.currentTime;
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.frequency.value = 880;
-                gainNode.gain.value = 0.25;
-                oscillator.start();
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 0.25);
-                oscillator.stop(now + 0.25);
-            } catch(e) { console.warn("beep failed", e); }
+        function playBeep() {
+            if (!audioEnabled) initAudioPool();
+            const availableAudio = audioElements.find(a => a.paused) || audioElements[0];
+            if (availableAudio) {
+                availableAudio.currentTime = 0;
+                availableAudio.play().catch(err => {
+                    console.warn("Wiedergabe im Intervall blockiert:", err);
+                });
+            }
         }
 
         async function requestWakeLock() {
@@ -518,7 +507,6 @@
             document.getElementById('manual-options').style.display = 'none';
             if(manualMarker) { map.removeLayer(manualMarker); manualMarker = null; }
 
-            // Buttons visibility
             document.getElementById('add-gps-btn').style.display = 'none';
             document.getElementById('sticker-btn').style.display = 'none';
             document.getElementById('opportunity-btn').style.display = 'none';
@@ -712,7 +700,6 @@
             if (currentPos) saveData(currentPos.lat, currentPos.lon, 'opportunity', 'potentiell', 1);
         });
 
-        // Korrigierte Auto-Track Funktion: Startet sofort (first run), dann alle 35 Sekunden pausieren
         function autoTrackCallback() {
             if (currentPos && currentMode === 'sticker' && autoTrackActive) {
                 playBeep();
@@ -737,64 +724,13 @@
             }
         }
 
-        function initAudio() {
-            if (audioCtx) return;
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            } catch (e) {
-                console.warn("Web Audio API wird nicht unterstützt");
-            }
-        }
-
-        let audioEnabled = false;
-        let audioElements = [];
-
-        // Eine garantiert funktionierende, saubere 16-Bit WAV-Datei (Sinus-Beep bei 800Hz, 0.2 Sekunden)
-        const BEEP_BASE64 = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAQA";
-
-        function initAudioPool() {
-            if (audioEnabled) return;
-
-            // Pool aus 3 Audio-Objekten für nahtlose Wiedergabe
-            for (let i = 0; i < 3; i++) {
-                const audio = new Audio();
-                audio.src = BEEP_BASE64;
-                audio.preload = 'auto';
-
-                // iOS/Android Unlock-Muster
-                audio.volume = 0;
-                audio.play().then(() => {
-                    audio.pause();
-                    audio.volume = 1.0;
-                }).catch(e => console.log("Audio Unlock passiv:", e));
-
-                audioElements.push(audio);
-            }
-            audioEnabled = true;
-        }
-
-        function playBeep() {
-            // Falls noch nicht initialisiert, jetzt nachholen
-            if (!audioEnabled) initAudioPool();
-
-            // Finde ein freies Audio-Element
-            const availableAudio = audioElements.find(a => a.paused) || audioElements[0];
-            if (availableAudio) {
-                availableAudio.currentTime = 0;
-                availableAudio.play().catch(err => {
-                    console.warn("Wiedergabe im Intervall blockiert:", err);
-                });
-            }
-        }
-
         function toggleAutoTrack() {
             autoTrackActive = !autoTrackActive;
             const btn = document.getElementById('auto-track-btn');
 
             if (autoTrackActive) {
-                // HIER aktivieren wir das Audio-System direkt durch den Klick!
-                initAudio();
-                playBeep(); // Sofortiger Test-Piep als Bestätigung
+                initAudioPool();
+                playBeep();
 
                 btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (ON) 🎵';
                 btn.classList.add('pulse-active');
@@ -876,7 +812,7 @@
         }, 30000);
 
         function unlockAudioOnMapClick() {
-            initAudio();
+            initAudioPool();
             document.removeEventListener('touchstart', unlockAudioOnMapClick);
             document.removeEventListener('click', unlockAudioOnMapClick);
         }
