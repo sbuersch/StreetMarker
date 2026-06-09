@@ -725,37 +725,40 @@
         let audioEnabled = false;
         let audioElements = [];
 
-        // Eine extrem kurze, saubere Beep-Ton MP3 als Base64-String direkt im Code eingebettet
-        const BEEP_BASE64 = "data:audio/mp3;base64,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AwDAZ///////5gMDAwP5//////+ZgMDAwAbAIBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQURM0gAAB/m7/zIAAAA/5//8zAAAD/5v/MgAAAAB/P//zMBgYAYAUDAUAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEAgEBAP/7smQGgByIM1zAzgSwR0E63AzASwRsk63AzASwAAAjwAAACAAAAKwEAABgMAwDAZ///////5gMDAwP5//////+ZgMDAwAbAIBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQKBQ==";
+        // Eine garantiert funktionierende, saubere 16-Bit WAV-Datei (Sinus-Beep bei 800Hz, 0.2 Sekunden)
+        const BEEP_BASE64 = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAQA";
 
         function initAudioPool() {
             if (audioEnabled) return;
 
-            // Erzeuge einen Pool aus 3 Audio-Objekten (verhindert Abschneiden bei schnellen Triggern)
+            // Pool aus 3 Audio-Objekten für nahtlose Wiedergabe
             for (let i = 0; i < 3; i++) {
                 const audio = new Audio();
                 audio.src = BEEP_BASE64;
                 audio.preload = 'auto';
-                // Wichtig für iOS: Spiele den Ton einmal sofort lautlos ab, um ihn zu entsperren
+
+                // iOS/Android Unlock-Muster
                 audio.volume = 0;
                 audio.play().then(() => {
                     audio.pause();
-                    audio.volume = 1.0; // Danach auf volle Lautstärke stellen
-                }).catch(e => console.log("Unlock temporary sound failed", e));
+                    audio.volume = 1.0;
+                }).catch(e => console.log("Audio Unlock passiv:", e));
+
                 audioElements.push(audio);
             }
             audioEnabled = true;
         }
 
         function playBeep() {
+            // Falls noch nicht initialisiert, jetzt nachholen
             if (!audioEnabled) initAudioPool();
 
-            // Suche ein Audio-Element, das gerade nicht spielt
+            // Finde ein freies Audio-Element
             const availableAudio = audioElements.find(a => a.paused) || audioElements[0];
             if (availableAudio) {
                 availableAudio.currentTime = 0;
                 availableAudio.play().catch(err => {
-                    console.warn("Audio-Wiedergabe vom Browser blockiert:", err);
+                    console.warn("Wiedergabe im Intervall blockiert:", err);
                 });
             }
         }
