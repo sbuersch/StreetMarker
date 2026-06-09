@@ -14,7 +14,7 @@
             --favorite: #fd7e14;
             --dark: #212529;
             --sticker: #007a3d;
-            --opportunity: #9b59b6;     /* Lila für Plakatiermöglichkeiten */
+            --opportunity: #9b59b6;
             --opportunity-light: #c39bd3;
         }
 
@@ -384,6 +384,7 @@
         // Auto Track Variables
         let autoTrackActive = false;
         let autoTrackInterval = null;
+        let isFirstRun = true;  // Für "sofort starten, dann pausieren"
 
         // --- Wake Lock API Integration ---
         let wakeLock = null;
@@ -696,6 +697,7 @@
             if (currentPos) saveData(currentPos.lat, currentPos.lon, 'opportunity', 'potentiell', 1);
         });
 
+        // Korrigierte Auto-Track Funktion: Startet sofort (first run), dann alle 35 Sekunden pausieren
         function autoTrackCallback() {
             if (currentPos && currentMode === 'sticker' && autoTrackActive) {
                 playBeep();
@@ -723,17 +725,46 @@
         function toggleAutoTrack() {
             autoTrackActive = !autoTrackActive;
             const btn = document.getElementById('auto-track-btn');
+
             if (autoTrackActive) {
                 btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (ON) 🎵';
                 btn.classList.add('pulse-active');
-                if (autoTrackInterval) clearInterval(autoTrackInterval);
-                autoTrackInterval = setInterval(() => autoTrackCallback(), 35000);
+
+                // Wichtig: Vorhandenes Interval löschen falls vorhanden
+                if (autoTrackInterval) {
+                    clearInterval(autoTrackInterval);
+                    autoTrackInterval = null;
+                }
+
+                // RESET isFirstRun für neuen Aktivierungszyklus
+                isFirstRun = true;
+
+                // Funktion die das erste Mal sofort ausführt und dann das Interval setzt
+                const startAutoTracking = () => {
+                    // Sofortige Ausführung beim Start (nicht erst nach 35 Sekunden warten)
+                    if (isFirstRun) {
+                        autoTrackCallback();
+                        isFirstRun = false;
+                    }
+                    // Dann reguläres Intervall starten
+                    if (autoTrackInterval) clearInterval(autoTrackInterval);
+                    autoTrackInterval = setInterval(() => {
+                        autoTrackCallback();
+                    }, 35000);
+                };
+
+                startAutoTracking();
             } else {
                 btn.innerHTML = '⏱️ Auto Track - Sticker alle 35sek hinzufügen (Off)';
                 btn.classList.remove('pulse-active');
-                if (autoTrackInterval) { clearInterval(autoTrackInterval); autoTrackInterval = null; }
+                if (autoTrackInterval) {
+                    clearInterval(autoTrackInterval);
+                    autoTrackInterval = null;
+                }
+                isFirstRun = true; // Reset für nächste Aktivierung
             }
         }
+
         document.getElementById('auto-track-btn').addEventListener('click', toggleAutoTrack);
 
         document.querySelectorAll('.btn-status').forEach(button => {
